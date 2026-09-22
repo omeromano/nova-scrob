@@ -1,0 +1,116 @@
+name: Build NOVA Scrob
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+    paths:
+      - '.github/workflows/build.yml'
+      - 'scripts/**'
+      - 'signing/**'
+      - 'README.md'
+      - 'SCOPE.md'
+
+permissions:
+  contents: read
+
+env:
+  NOVA_TAG: v6.4.64
+  APP_VERSION: 0.1.0
+  APP_ID: org.courville.novascrob
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout NOVA Scrob build repo
+        uses: actions/checkout@v4
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Fetch exact NOVA release source
+        shell: bash
+        run: |
+          set -euxo pipefail
+          git clone --branch "$NOVA_TAG" --single-branch https://github.com/nova-video-player/aos-AVP.git nova-src
+          cd nova-src
+          git submodule sync --recursive
+          git submodule update --init --recursive --jobs 4
+          git rev-parse HEAD
+          git submodule status --recursive
+
+      - name: Apply NOVA Scrob patch
+        shell: bash
+        run: |
+          set -euxo pipefail
+          python3 scripts/apply_nova_scrob.py nova-src
+          grep -R "${APP_ID}" -n nova-src/Video/build.gradle nova-src/Video/AndroidManifest.xml
+          grep -R "scrob_authorize\|scrob_url" -n nova-src/Video/res/xml/preferences_video.xml
+
+      - name: Build unsigned release APK
+        shell: bash
+        run: |
+          set -euxo pipefail
+          cd nova-src/Video
+          chmod +x ./gradlew
+          ./gradlew --no-daemon -Puniversal assembleNoamazonRelease
+
+      - name: Sign APK with persistent NOVA Scrob key
+        shell: bash
+        run: |
+          set -euxo pipefail
+          mkdir -p dist
+          base64 --decode signing/nova-scrob.jks.b64 > dist/nova-scrob.jks
+
+          APK="$(find nova-src/Video/build/outputs/apk -type f -name '*.apk' | grep -Ei 'noamazon.*release|release.*noamazon' | head -1)"
+          if [ -z "$APK" ]; then
+            echo "Could not locate release APK"
+            find nova-src/Video/build/outputs -type f || true
+            exit 1
+          fi
+
+          APKSIGNER="$(find "$ANDROID_HOME/build-tools" -type f -name apksigner | sort -V | tail -1)"
+          if [ -z "$APKSIGNER" ]; then
+            echo "apksigner not found"
+            exit 1
+          fi
+
+          "$APKSIGNER" sign \
+            --ks dist/nova-scrob.jks \
+            --ks-key-alias nova-scrob \
+            --ks-pass pass:nova-scrob-local \
+            --key-pass pass:nova-scrob-local \
+            --out "dist/nova-scrob-v${APP_VERSION}.apk" \
+            "$APK"
+
+          "$APKSIGNER" verify --verbose --print-certs "dist/nova-scrob-v${APP_VERSION}.apk"
+          rm -f dist/nova-scrob.jks
+          sha256sum "dist/nova-scrob-v${APP_VERSION}.apk" > dist/SHA256SUMS.txt
+
+      - name: Upload installable APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: nova-scrob-v${{ env.APP_VERSION }}-apk
+          path: |
+            dist/nova-scrob-v${{ env.APP_VERSION }}.apk
+            dist/SHA256SUMS.txt
+          if-no-files-found: error
+
+      - name: Upload diagnostics on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nova-scrob-v${{ env.APP_VERSION }}-diagnostics
+          path: |
+            nova-src/Video/build/reports/**
+            nova-src/Video/build/outputs/logs/**
+            nova-src/Video/build.gradle
+            nova-src/Video/AndroidManifest.xml
+            nova-src/Video/res/xml/preferences_video.xml
+          if-no-files-found: ignore
