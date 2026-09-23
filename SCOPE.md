@@ -17,3 +17,5 @@ NOVA Scrob is intentionally a minimal patch.
 - Nuvio, Jellyfin, Plex, or Emby integration.
 - Changes to NOVA's player, scraper, browsing UI, or media library beyond what is required for playback tracking.
 - Replacing unrelated Trakt library features.
+
+- v0.1.1 fixes authorization launch/lifecycle and persistence visibility only.
