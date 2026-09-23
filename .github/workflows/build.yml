@@ -4,19 +4,14 @@ on:
   workflow_dispatch:
   push:
     branches: [ main ]
-    paths:
-      - '.github/workflows/build.yml'
-      - 'scripts/**'
-      - 'signing/**'
-      - 'README.md'
-      - 'SCOPE.md'
+    tags: [ 'v*' ]
 
 permissions:
-  contents: read
+  contents: write
 
 env:
   NOVA_TAG: v6.4.64
-  APP_VERSION: 0.1.0
+  APP_VERSION: 0.1.1
   APP_ID: org.courville.novascrob
 
 jobs:
@@ -101,6 +96,15 @@ jobs:
             dist/nova-scrob-v${{ env.APP_VERSION }}.apk
             dist/SHA256SUMS.txt
           if-no-files-found: error
+
+      - name: Publish GitHub Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/nova-scrob-v${{ env.APP_VERSION }}.apk
+            dist/SHA256SUMS.txt
+          generate_release_notes: true
 
       - name: Upload diagnostics on failure
         if: failure()
