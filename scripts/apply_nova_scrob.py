@@ -158,7 +158,7 @@ public class ScrobLoginPreference extends Preference {
     private void show2fa(String url,String user,String temp){EditText code=field("2FA or backup code",InputType.TYPE_CLASS_TEXT);code.setPadding(dp(24),dp(8),dp(24),dp(8));AlertDialog dlg=new AlertDialog.Builder(ctx).setTitle("Scrob two-factor authentication").setMessage("Enter the code from your authenticator, or a Scrob backup code.").setView(code).setPositiveButton("Verify",null).setNegativeButton("Cancel",null).create();dlg.setOnShowListener(x->dlg.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(v->{String c=code.getText().toString().trim();if(c.isEmpty())return;View b=dlg.getButton(AlertDialog.BUTTON_POSITIVE);b.setEnabled(false);new Thread(()->{try{Scrob.HttpResult r=Scrob.verify2fa(ctx,url,user,temp,c);main.post(()->{b.setEnabled(true);if(r.ok()&&Scrob.hasAuthorization(ctx)){PreferenceManager.getDefaultSharedPreferences(ctx).edit().putBoolean(Scrob.KEY_ENABLED,true).commit();Toast.makeText(ctx,"Connected to Scrob",Toast.LENGTH_SHORT).show();dlg.dismiss();refresh();notifyChanged();}else Toast.makeText(ctx,"Verification failed: "+r.detail(),Toast.LENGTH_LONG).show();});}catch(Exception e){main.post(()->{b.setEnabled(true);Toast.makeText(ctx,"Could not verify: "+e.getMessage(),Toast.LENGTH_LONG).show();});}},"Scrob2FA").start();}));dlg.show();}
 }
 '''
-write('Video/src/com/archos/mediacenter/video/scrob/ScrobLoginPreference.java',login_pref)
+write('Video/src/main/java/com/archos/mediacenter/video/scrob/ScrobLoginPreference.java',login_pref)
 
 # Add a compact Scrob category. The login preference itself owns the modal.
 pref='Video/res/xml/preferences_video.xml'; text=read(pref); needle='''    <PreferenceCategory\n        android:key="trakt_category"'''
@@ -184,4 +184,4 @@ else:
 write(build,b)
 for rel in ['Video/res/xml/file_paths.xml','Video/res/xml/provider_paths.xml']:
     if p(rel).exists(): write(rel,read(rel).replace('org.courville.nova',APP_ID))
-print('NOVA Scrob v0.1.2 patch applied. appId='+APP_ID)
+print('NOVA Scrob v0.1.3 patch applied. appId='+APP_ID)

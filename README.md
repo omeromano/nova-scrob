@@ -2,7 +2,7 @@
 
 Minimal personal fork of NOVA Video Player that reports local playback directly to a self-hosted Scrob instance without requiring Trakt.
 
-## v0.1.2
+## v0.1.3
 
 This build replaces the experimental device-code/API-key setup with a NOVA-style credential dialog.
 
@@ -28,6 +28,11 @@ NOVA Scrob intentionally does **not** add Scrob browsing, two-way library/histor
 
 GitHub Actions fetches the exact NOVA `v6.4.64` source and submodule commits, applies `scripts/apply_nova_scrob.py`, builds the release APK, and signs it with the fork's persistent signing identity.
 
-Run **Actions → Build NOVA Scrob → Run workflow**. The output artifact is `nova-scrob-v0.1.2-apk`.
+Run **Actions → Build NOVA Scrob → Run workflow**. The output artifact is `nova-scrob-v0.1.3-apk`.
 
-Pushing a `v0.1.2` tag also publishes the APK to GitHub Releases.
+Pushing a `v0.1.3` tag also publishes the APK to GitHub Releases.
+
+
+## v0.1.3
+
+Fixes the Preferences crash in v0.1.2 by placing `ScrobLoginPreference` in NOVA's actual Java source set (`Video/src/main/java/...`). No authentication or playback behavior changes are intended in this build.
