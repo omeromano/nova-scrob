@@ -167,21 +167,90 @@ section='''    <PreferenceCategory\n        android:key="scrob_category"\n      
 write(pref,text.replace(needle,section+needle,1))
 write('Video/res/values/scrob_strings.xml','''<?xml version="1.0" encoding="utf-8"?>\n<resources>\n<string name="category_scrob">Scrob</string>\n<string name="scrob_enabled_title">Use Scrob for playback tracking</string>\n<string name="scrob_enabled_summary">Send local playback progress to Scrob instead of Trakt</string>\n<string name="scrob_login_title">Scrob account</string>\n<string name="scrob_login_summary">Sign in with your Scrob URL, username and password</string>\n</resources>\n''')
 
-# Permanent parallel-install identity.
+# Permanent parallel-install identity + visible branding.
+# IMPORTANT: only patch the active applicationId line. Older revisions accidentally
+# matched a commented example, which made the APK retain stock NOVA's package id.
 manifest='Video/AndroidManifest.xml'
 if not p(manifest).exists(): raise RuntimeError('Video/AndroidManifest.xml not found')
-m=read(manifest).replace('org.courville.nova',APP_ID);write(manifest,m)
+
 build='Video/build.gradle'
 if not p(build).exists(): raise RuntimeError('Video/build.gradle not found')
 b=read(build)
-b=re.sub(r'''namespace\s*(?:=\s*)?['\"]org\.courville\.nova['\"]''',f"namespace = '{APP_ID}'",b)
-if re.search(r'''applicationId\s*(?:=\s*)?['\"][^'\"]+['\"]''',b):
-    b=re.sub(r'''applicationId\s*(?:=\s*)?['\"][^'\"]+['\"]''',f"applicationId '{APP_ID}'",b,count=1)
-else:
-    marker=re.search(r'defaultConfig\s*\{',b)
-    if not marker: raise RuntimeError('Could not find defaultConfig in Video/build.gradle')
-    pos=marker.end();b=b[:pos]+f"\n        applicationId '{APP_ID}'"+b[pos:]
+app_id_re=re.compile(r'(?m)^(\s*)applicationId\s*(?:=\s*)?[\"\']org\.courville\.nova[\"\']\s*$')
+matches=list(app_id_re.finditer(b))
+if len(matches)!=1:
+    raise RuntimeError(f'Expected exactly one active stock NOVA applicationId, found {len(matches)}')
+b=app_id_re.sub(lambda m: f'{m.group(1)}applicationId = \"{APP_ID}\"', b, count=1)
 write(build,b)
+
+# Update explicit package references if any exist in the manifest/provider-path files.
+m=read(manifest).replace('org.courville.nova',APP_ID)
+
+# Brand the actual application and launcher activities rather than relying on an
+# upstream string resource whose name can change between NOVA releases.
+import xml.etree.ElementTree as ET
+ANDROID_NS='http://schemas.android.com/apk/res/android'
+A='{'+ANDROID_NS+'}'
+ET.register_namespace('android',ANDROID_NS)
+root=ET.fromstring(m)
+app=root.find('application')
+if app is None: raise RuntimeError('No <application> in AndroidManifest.xml')
+app.set(A+'label','NOVA Scrob')
+app.set(A+'icon','@drawable/nova_scrob_icon')
+app.set(A+'roundIcon','@drawable/nova_scrob_icon')
+for child in list(app):
+    if child.tag not in ('activity','activity-alias'):
+        continue
+    launcher=False
+    for f in child.findall('intent-filter'):
+        actions={x.get(A+'name','') for x in f.findall('action')}
+        cats={x.get(A+'name','') for x in f.findall('category')}
+        if 'android.intent.action.MAIN' in actions and (
+            'android.intent.category.LAUNCHER' in cats or
+            'android.intent.category.LEANBACK_LAUNCHER' in cats):
+            launcher=True
+            break
+    if launcher:
+        child.set(A+'label','NOVA Scrob')
+        child.set(A+'icon','@drawable/nova_scrob_icon')
+        child.set(A+'roundIcon','@drawable/nova_scrob_icon')
+write(manifest,ET.tostring(root,encoding='unicode'))
+
+# Flavor manifests have higher manifest-merger priority than the base manifest.
+# In particular, NOVA's noamazon flavor defines @mipmap/ic_launcher on its
+# <application>, so branding only the base manifest still causes a merge conflict.
+# Patch every flavor manifest that contains an <application> element so the
+# effective icon/label are identical at all manifest priority levels.
+for flavor_manifest in sorted(p('Video/src').glob('*/AndroidManifest.xml')):
+    try:
+        fm_text=flavor_manifest.read_text()
+        fm_root=ET.fromstring(fm_text)
+    except Exception as e:
+        raise RuntimeError(f'Could not parse flavor manifest {flavor_manifest}: {e}')
+    fm_app=fm_root.find('application')
+    if fm_app is None:
+        continue
+    fm_app.set(A+'label','NOVA Scrob')
+    fm_app.set(A+'icon','@drawable/nova_scrob_icon')
+    fm_app.set(A+'roundIcon','@drawable/nova_scrob_icon')
+    flavor_manifest.write_text(ET.tostring(fm_root,encoding='unicode'))
+
+# The branding asset lives in this build repository and is copied into NOVA at
+# patch time so the upstream source tree remains untouched in git.
+branding_src=Path(__file__).resolve().parent.parent/'branding'/'nova_scrob_icon.png'
+if not branding_src.exists(): raise RuntimeError(f'Missing branding asset: {branding_src}')
+icon_dest=p('Video/res/drawable-nodpi/nova_scrob_icon.png')
+icon_dest.parent.mkdir(parents=True,exist_ok=True)
+icon_dest.write_bytes(branding_src.read_bytes())
+
 for rel in ['Video/res/xml/file_paths.xml','Video/res/xml/provider_paths.xml']:
     if p(rel).exists(): write(rel,read(rel).replace('org.courville.nova',APP_ID))
-print('NOVA Scrob v0.1.3 patch applied. appId='+APP_ID)
+
+# Source-level assertions: catch the package-id regression before Gradle starts.
+final_build=read(build)
+active_ids=re.findall(r'(?m)^\s*applicationId\s*(?:=\s*)?[\"\']([^\"\']+)[\"\']\s*$',final_build)
+if active_ids != [APP_ID]: raise RuntimeError(f'Unexpected active applicationId(s): {active_ids}')
+final_manifest=read(manifest)
+if 'NOVA Scrob' not in final_manifest or '@drawable/nova_scrob_icon' not in final_manifest:
+    raise RuntimeError('Branding did not apply to AndroidManifest.xml')
+print('NOVA Scrob v0.1.4 patch applied. appId='+APP_ID)

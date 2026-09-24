@@ -1,38 +1,22 @@
-# NOVA Scrob
+# NOVA Scrob v0.1.4
 
-Minimal personal fork of NOVA Video Player that reports local playback directly to a self-hosted Scrob instance without requiring Trakt.
+Minimal NOVA Video Player fork that adds direct playback reporting to a self-hosted Scrob instance.
 
-## v0.1.3
+## v0.1.4 identity / branding pass
 
-This build replaces the experimental device-code/API-key setup with a NOVA-style credential dialog.
+- Keeps the v0.1.3 Scrob username/password login and Preferences crash fix.
+- Fixes package identity so the active Android `applicationId` is `org.courville.novascrob`.
+- Changes the visible launcher/app label to **NOVA Scrob**.
+- Adds the Scrob-themed NOVA launcher icon.
+- Applies the label/icon to launcher and Leanback launcher activities as well as the application.
+- CI inspects the final signed APK with `aapt dump badging` and fails unless package ID, label and icon are correct.
+- Keeps the persistent NOVA Scrob signing key so future builds can update this package in place.
 
-In **Settings → Scrob → Scrob account**, enter:
-
-- Scrob URL (for example `https://scrob.example.com`)
-- Scrob username
-- Scrob password
-
-NOVA Scrob signs in through Scrob's normal `/auth/login` API and stores only the returned bearer token plus the URL and username. **The password is not persisted.** If the Scrob account uses TOTP 2FA, a second dialog asks for the authenticator/backup code.
-
-After login, local playback is reported to Scrob through its Kodi-compatible webhook transport. The patch reuses NOVA's existing playback lifecycle instead of introducing another playback service.
-
-### Persistence
-
-The Scrob URL, username, bearer token, and enabled state use Android persistent `SharedPreferences`, so they should survive app restarts and device reboots. If Scrob later rejects an expired/revoked token, NOVA Scrob clears that token and the account can be signed in again from Settings.
-
-### Scope
-
-NOVA Scrob intentionally does **not** add Scrob browsing, two-way library/history synchronization, Nuvio/Jellyfin integration, ratings, or other NOVA feature changes.
-
-## Build
-
-GitHub Actions fetches the exact NOVA `v6.4.64` source and submodule commits, applies `scripts/apply_nova_scrob.py`, builds the release APK, and signs it with the fork's persistent signing identity.
-
-Run **Actions → Build NOVA Scrob → Run workflow**. The output artifact is `nova-scrob-v0.1.3-apk`.
-
-Pushing a `v0.1.3` tag also publishes the APK to GitHub Releases.
+The Scrob password is used only during sign-in and is not persisted. The returned bearer token is stored in app preferences.
 
 
-## v0.1.3
+Build fix: branding is applied to NOVA flavor manifests (including noamazon) as well as the base manifest to avoid Android manifest-merger icon conflicts.
 
-Fixes the Preferences crash in v0.1.2 by placing `ScrobLoginPreference` in NOVA's actual Java source set (`Video/src/main/java/...`). No authentication or playback behavior changes are intended in this build.
+
+### v0.1.4 build-check fix
+The final APK branding check validates the resolved application label and icon entry rather than the source resource name, because AAPT may rename compiled resources (for example to `res/go.png`).

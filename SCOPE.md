@@ -1,22 +1,20 @@
-# NOVA Scrob scope
+# v0.1.4 scope
 
-## Included
+Identity/branding pass on top of the v0.1.3 stability fix.
 
-- Permanent parallel package identity: `org.courville.novascrob`
-- Direct Scrob playback reporting from NOVA's existing playback callbacks
-- 60-second progress reporting
-- NOVA-style Scrob login dialog: URL + username + password
-- Scrob TOTP/backup-code login when required
-- Persistent URL, username, bearer token, and enabled state
-- Disconnect/re-login flow
-- Stable signing identity for in-place NOVA Scrob upgrades
-- GitHub Actions APK artifact and release-on-tag
+In scope:
+- effective package ID: `org.courville.novascrob`
+- visible app name: `NOVA Scrob`
+- Scrob-themed launcher icon
+- final-APK package/label/icon assertions
+- preserve v0.1.3 login and playback behavior unchanged
 
-## Deliberately excluded
+Out of scope:
+- library sync
+- ratings sync
+- Jellyfin/Nuvio integration
+- playback metadata redesign
+- changes to Scrob authentication behavior
 
-- API-key entry in the Android UI
-- Kodi device-code authorization UI
-- Scrob-to-NOVA history/resume synchronization
-- Jellyfin or Nuvio changes
-- Ratings/collection synchronization
-- Unrelated NOVA UI or playback changes
+
+Build fix: branding is applied to NOVA flavor manifests (including noamazon) as well as the base manifest to avoid Android manifest-merger icon conflicts.
