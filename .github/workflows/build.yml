@@ -11,7 +11,7 @@ permissions:
 
 env:
   NOVA_TAG: v6.4.64
-  APP_VERSION: 0.1.1
+  APP_VERSION: 0.1.2
   APP_ID: org.courville.novascrob
 
 jobs:
@@ -46,7 +46,7 @@ jobs:
           set -euxo pipefail
           python3 scripts/apply_nova_scrob.py nova-src
           grep -R "${APP_ID}" -n nova-src/Video/build.gradle nova-src/Video/AndroidManifest.xml
-          grep -R "scrob_authorize\|scrob_url" -n nova-src/Video/res/xml/preferences_video.xml
+          grep -R "scrob_login\|scrob_enabled" -n nova-src/Video/res/xml/preferences_video.xml
 
       - name: Build unsigned release APK
         shell: bash

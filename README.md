@@ -1,78 +1,33 @@
 # NOVA Scrob
 
-A deliberately small personal fork/patch of NOVA Video Player that sends **local playback** to a self-hosted Scrob instance instead of requiring Trakt for live scrobbling.
+Minimal personal fork of NOVA Video Player that reports local playback directly to a self-hosted Scrob instance without requiring Trakt.
 
-## Baseline
+## v0.1.2
 
-- NOVA upstream: **v6.4.64**
-- NOVA Scrob: **v0.1.1**
-- Android package: **`org.courville.novascrob`**
-- Scrob authentication: **device-link / Bearer token**
+This build replaces the experimental device-code/API-key setup with a NOVA-style credential dialog.
 
-The package ID is intentionally different from stock NOVA, so both apps can coexist on the same Android device. The build also uses one persistent signing key so future NOVA Scrob APKs can update the same installation.
+In **Settings → Scrob → Scrob account**, enter:
 
-## What v0.1.1 changes
+- Scrob URL (for example `https://scrob.example.com`)
+- Scrob username
+- Scrob password
 
-Only the minimum needed for Scrob:
+NOVA Scrob signs in through Scrob's normal `/auth/login` API and stores only the returned bearer token plus the URL and username. **The password is not persisted.** If the Scrob account uses TOTP 2FA, a second dialog asks for the authenticator/backup code.
 
-- Adds **Settings → Scrob**.
-- Stores the Scrob base URL persistently using Android `SharedPreferences`.
-- Adds **Authorize with Scrob** using Scrob's short-code device-link flow.
-- Persists access token, refresh token, and token expiry across app restarts/reboots.
-- Refreshes the Bearer token when needed.
-- Sends NOVA's existing playback callbacks to Scrob's Kodi-compatible webhook:
-  - play
-  - progress (about every 60 seconds)
-  - pause
-  - stop/completion
-- Leaves the rest of NOVA as close to upstream as possible.
+After login, local playback is reported to Scrob through its Kodi-compatible webhook transport. The patch reuses NOVA's existing playback lifecycle instead of introducing another playback service.
 
-There is **no API-key text field**, no Scrob library browser, and no Scrob→NOVA history synchronization.
+### Persistence
 
-## Create the repository using only GitHub's web interface
+The Scrob URL, username, bearer token, and enabled state use Android persistent `SharedPreferences`, so they should survive app restarts and device reboots. If Scrob later rejects an expired/revoked token, NOVA Scrob clears that token and the account can be signed in again from Settings.
 
-1. Create a new GitHub repository named `nova-scrob` (or any name you prefer).
-2. Upload the contents of this bundle preserving these paths:
+### Scope
 
-```text
-.github/workflows/build.yml
-scripts/apply_nova_scrob.py
-signing/nova-scrob.jks.b64
-.gitignore
-README.md
-SCOPE.md
-```
+NOVA Scrob intentionally does **not** add Scrob browsing, two-way library/history synchronization, Nuvio/Jellyfin integration, ratings, or other NOVA feature changes.
 
-3. Commit to `main` with something like:
+## Build
 
-```text
-Initial NOVA Scrob v0.1.1
-```
+GitHub Actions fetches the exact NOVA `v6.4.64` source and submodule commits, applies `scripts/apply_nova_scrob.py`, builds the release APK, and signs it with the fork's persistent signing identity.
 
-4. Open **Actions → Build NOVA Scrob → Run workflow**.
-5. Download the artifact named **`nova-scrob-v0.1.1-apk`**.
-6. Install `nova-scrob-v0.1.1.apk` using APKInstaller.
+Run **Actions → Build NOVA Scrob → Run workflow**. The output artifact is `nova-scrob-v0.1.2-apk`.
 
-## First-time setup on Android
-
-1. Open **NOVA Scrob → Settings → Scrob**.
-2. Enter only the Scrob base URL, for example `https://scrob.example.com`.
-3. Select **Authorize with Scrob**.
-4. NOVA Scrob displays a short code and your Scrob `/link` address.
-5. On your phone or computer, open that address, sign in, and approve the device.
-6. Return to NOVA Scrob; it should display **Authorized ✓**.
-7. Enable **Use Scrob for playback tracking**.
-
-The URL and authorization tokens are persisted locally and should survive an app restart or Android reboot.
-
-## Signing note
-
-`signing/nova-scrob.jks.b64` is a dedicated **personal-build signing key** included only so successive APKs from this repository have the same Android signature. It is not intended for Google Play or public production distribution. If this project is ever published broadly, replace it with a private release key stored in GitHub Secrets.
-
-
-## v0.1.1
-
-- Fixes the Scrob authorization launcher used from NOVA Settings.
-- The Android box no longer opens a browser; NOVA Scrob displays the short code and `/link` URL for use on a phone/computer.
-- The authorization screen reloads and displays the persisted Scrob URL and authorization state.
-- Pushing tag `v0.1.1` publishes the signed APK and checksum to GitHub Releases.
+Pushing a `v0.1.2` tag also publishes the APK to GitHub Releases.
