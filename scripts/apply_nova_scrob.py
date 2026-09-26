@@ -4,6 +4,8 @@ import re, sys
 
 ROOT = Path(sys.argv[1] if len(sys.argv) > 1 else '.').resolve()
 APP_ID = 'org.courville.novascrob'
+SCROB_VERSION = '0.1.7'
+NOVA_BASE_VERSION = '6.4.64'
 
 def p(rel): return ROOT / rel
 def read(rel): return p(rel).read_text(encoding='utf-8')
@@ -21,6 +23,16 @@ replace_once('MediaLib/src/com/archos/mediacenter/utils/trakt/Trakt.java',
 replace_once('MediaLib/src/com/archos/mediacenter/utils/trakt/Trakt.java',
 '''    public static boolean isLiveScrobblingEnabled(SharedPreferences pref) {\n        return pref.getBoolean(KEY_TRAKT_LIVE_SCROBBLING, true);\n    }''',
 '''    public static boolean isLiveScrobblingEnabled(SharedPreferences pref) {\n        return pref.getBoolean("scrob_enabled", false) ||\n                pref.getBoolean(KEY_TRAKT_LIVE_SCROBBLING, true);\n    }''')
+
+# Route NOVA's existing playback lifecycle/scheduler through Scrob when enabled.
+# This is deliberately done at Trakt.postWatching(): every existing NOVA caller
+# (start, periodic progress, pause and stop) is preserved without a second timer.
+replace_once('MediaLib/src/com/archos/mediacenter/utils/trakt/Trakt.java',
+             'import com.archos.mediacenter.utils.trakt.Trakt.Result.ObjectType;',
+             'import com.archos.mediacenter.utils.trakt.Trakt.Result.ObjectType;\nimport com.archos.mediacenter.utils.scrob.Scrob;')
+replace_once('MediaLib/src/com/archos/mediacenter/utils/trakt/Trakt.java',
+'''    public Result postWatching(final String action,final VideoDbInfo videoInfo, final float progress, final int trial) {\n        if (log.isDebugEnabled()) log.debug("postWatching for action={}, progress={}, trial={}", action, progress, trial);''',
+'''    public Result postWatching(final String action,final VideoDbInfo videoInfo, final float progress, final int trial) {\n        if (Scrob.isEnabled(mContext)) {\n            final String method;\n            if ("pause".equals(action)) method = "Player.OnPause";\n            else if ("stop".equals(action)) method = "Player.OnStop";\n            else method = "Player.OnPlay";\n            return Scrob.postPlayback(mContext, videoInfo, progress, method, progress >= SCROBBLE_THRESHOLD);\n        }\n        if (log.isDebugEnabled()) log.debug("postWatching for action={}, progress={}, trial={}", action, progress, trial);''')
 
 # Scrob transport. Mirror ellite/scrob-kodi's API-key path exactly:
 #   POST {base}/api/proxy/webhooks/kodi?api_key=...
@@ -50,6 +62,11 @@ public final class Scrob {
     public static final String KEY_ENABLED = "scrob_enabled";
     public static final String KEY_URL = "scrob_url";
     public static final String KEY_API_KEY = "scrob_api_key";
+    public static final String KEY_LAST_WEBHOOK_AT = "scrob_last_webhook_at";
+    public static final String KEY_LAST_WEBHOOK_STATUS = "scrob_last_webhook_status";
+    public static final String KEY_LAST_EVENT = "scrob_last_event";
+    public static final String KEY_LAST_TITLE = "scrob_last_title";
+    public static final String KEY_LAST_ERROR = "scrob_last_error";
     private Scrob() {}
 
     private static SharedPreferences prefs(Context c) { return PreferenceManager.getDefaultSharedPreferences(c.getApplicationContext()); }
@@ -60,6 +77,14 @@ public final class Scrob {
     public static boolean hasConnection(Context c){return !baseUrl(c).isEmpty()&&!apiKey(c).isEmpty();}
     public static boolean isEnabled(Context c){return prefs(c).getBoolean(KEY_ENABLED,false)&&hasConnection(c);}
     public static String status(Context c){return hasConnection(c)?"Connected with an API key":"Not connected";}
+    public static String diagnostic(Context c){
+        SharedPreferences p=prefs(c);
+        long at=p.getLong(KEY_LAST_WEBHOOK_AT,0);
+        String when=at==0?"Never":new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss",java.util.Locale.getDefault()).format(new java.util.Date(at));
+        return "Scrob URL: "+baseUrl(c)+"\nConnection: "+status(c)+"\nLast webhook: "+when+
+            "\nHTTP status: "+p.getInt(KEY_LAST_WEBHOOK_STATUS,0)+"\nEvent: "+value(p,KEY_LAST_EVENT)+
+            "\nTitle: "+value(p,KEY_LAST_TITLE)+"\nLast error: "+value(p,KEY_LAST_ERROR);
+    }
     public static void disconnect(Context c){prefs(c).edit().remove(KEY_API_KEY).putBoolean(KEY_ENABLED,false).commit();}
 
     public static final class HttpResult {
@@ -131,6 +156,14 @@ public final class Scrob {
     public static Trakt.Result postPlayback(Context c,VideoDbInfo v,float progress,String method,boolean ended){
         if(!isEnabled(c)||v==null)return Trakt.Result.getError();
         try{
+            // NOVA uses Trakt "start" both for initial play/resume and periodic updates.
+            // Match scrob-kodi: repeated samples become Player.OnAVChange; a sample after
+            // pause remains Player.OnPlay (resume).
+            SharedPreferences p=prefs(c);
+            String title=v.scraperTitle==null?"":v.scraperTitle;
+            String prevEvent=value(p,KEY_LAST_EVENT), prevTitle=value(p,KEY_LAST_TITLE);
+            if("Player.OnPlay".equals(method) && title.equals(prevTitle) &&
+                    ("Player.OnPlay".equals(prevEvent)||"Player.OnAVChange".equals(prevEvent))) method="Player.OnAVChange";
             long total=Math.max(0,v.duration);
             long current=total>0?Math.round(total*(Math.max(0f,Math.min(100f,progress))/100.0)):0;
             JSONObject ps=new JSONObject();
@@ -145,9 +178,14 @@ public final class Scrob {
                 d.put("end",ended);pa.put("data",d);b.put("params",pa);
             }
             HttpResult r=request("POST",apiUrl(baseUrl(c),"webhooks/kodi",apiKey(c)),b.toString().getBytes(StandardCharsets.UTF_8));
+            prefs(c).edit().putLong(KEY_LAST_WEBHOOK_AT,System.currentTimeMillis()).putInt(KEY_LAST_WEBHOOK_STATUS,r.code)
+                .putString(KEY_LAST_EVENT,method).putString(KEY_LAST_TITLE,v.scraperTitle==null?"":v.scraperTitle)
+                .putString(KEY_LAST_ERROR,r.ok()?"":r.detail()).apply();
             return r.ok()?Trakt.Result.getSuccess():Trakt.Result.getErrorNetwork();
         }catch(Exception e){
             log.warn("Scrob webhook failed",e);
+            prefs(c).edit().putLong(KEY_LAST_WEBHOOK_AT,System.currentTimeMillis()).putString(KEY_LAST_EVENT,method)
+                .putString(KEY_LAST_TITLE,v.scraperTitle==null?"":v.scraperTitle).putString(KEY_LAST_ERROR,String.valueOf(e.getMessage())).apply();
             return Trakt.Result.getErrorNetwork();
         }
     }
@@ -246,12 +284,72 @@ public class ScrobLoginPreference extends Preference {
 '''
 write('Video/src/main/java/com/archos/mediacenter/video/scrob/ScrobLoginPreference.java',login_pref)
 
+diagnostics_pref=r'''package com.archos.mediacenter.video.scrob;
+import android.app.AlertDialog;
+import android.content.Context;
+import android.util.AttributeSet;
+import androidx.preference.Preference;
+import com.archos.mediacenter.utils.scrob.Scrob;
+
+public class ScrobDiagnosticsPreference extends Preference {
+    private final Context ctx;
+    public ScrobDiagnosticsPreference(Context c,AttributeSet a){super(c,a);ctx=c;}
+    public ScrobDiagnosticsPreference(Context c,AttributeSet a,int d){super(c,a,d);ctx=c;}
+    @Override protected void onClick(){
+        super.onClick();
+        new AlertDialog.Builder(ctx).setTitle("NOVA Scrob diagnostics")
+            .setMessage("NOVA Scrob: v0.1.7\\nBase NOVA: v6.4.64\\n\\n"+Scrob.diagnostic(ctx))
+            .setPositiveButton("OK",null).show();
+    }
+}
+'''
+write('Video/src/main/java/com/archos/mediacenter/video/scrob/ScrobDiagnosticsPreference.java',diagnostics_pref)
+
+
 # Add a compact Scrob category. The login preference itself owns the modal.
 pref='Video/res/xml/preferences_video.xml'; text=read(pref); needle='''    <PreferenceCategory\n        android:key="trakt_category"'''
 if text.count(needle)!=1: raise RuntimeError('Could not locate Trakt settings anchor')
-section='''    <PreferenceCategory\n        android:key="scrob_category"\n        android:title="@string/category_scrob"\n        app:iconSpaceReserved="false">\n        <CheckBoxPreference\n            android:defaultValue="false"\n            android:key="scrob_enabled"\n            android:persistent="true"\n            android:title="@string/scrob_enabled_title"\n            android:summary="@string/scrob_enabled_summary"\n            app:iconSpaceReserved="false"/>\n        <com.archos.mediacenter.video.scrob.ScrobLoginPreference\n            android:key="scrob_login"\n            android:persistent="false"\n            android:title="@string/scrob_login_title"\n            android:summary="@string/scrob_login_summary"\n            app:iconSpaceReserved="false"/>\n    </PreferenceCategory>\n'''
+section='''    <PreferenceCategory\n        android:key="scrob_category"\n        android:title="@string/category_scrob"\n        app:iconSpaceReserved="false">\n        <CheckBoxPreference\n            android:defaultValue="false"\n            android:key="scrob_enabled"\n            android:persistent="true"\n            android:title="@string/scrob_enabled_title"\n            android:summary="@string/scrob_enabled_summary"\n            app:iconSpaceReserved="false"/>\n        <com.archos.mediacenter.video.scrob.ScrobLoginPreference\n            android:key="scrob_login"\n            android:persistent="false"\n            android:title="@string/scrob_login_title"\n            android:summary="@string/scrob_login_summary"\n            app:iconSpaceReserved="false"/>\n        <CheckBoxPreference\n            android:defaultValue="true"\n            android:key="scrob_back_button"\n            android:persistent="true"\n            android:title="@string/scrob_back_button_title"\n            android:summary="@string/scrob_back_button_summary"\n            app:iconSpaceReserved="false"/>\n        <com.archos.mediacenter.video.scrob.ScrobDiagnosticsPreference\n            android:key="scrob_diagnostics"\n            android:persistent="false"\n            android:title="@string/scrob_diagnostics_title"\n            android:summary="@string/scrob_diagnostics_summary"\n            app:iconSpaceReserved="false"/>\n    </PreferenceCategory>\n'''
 write(pref,text.replace(needle,section+needle,1))
-write('Video/res/values/scrob_strings.xml','''<?xml version="1.0" encoding="utf-8"?>\n<resources>\n<string name="category_scrob">Scrob</string>\n<string name="scrob_enabled_title">Use Scrob for playback tracking</string>\n<string name="scrob_enabled_summary">Send local playback progress to Scrob instead of Trakt</string>\n<string name="scrob_login_title">Scrob connection</string>\n<string name="scrob_login_summary">Connect using your Scrob URL and API key</string>\n</resources>\n''')
+write('Video/res/values/scrob_strings.xml','''<?xml version="1.0" encoding="utf-8"?>\n<resources>\n<string name="category_scrob">Scrob</string>\n<string name="scrob_enabled_title">Use Scrob for playback tracking</string>\n<string name="scrob_enabled_summary">Send local playback progress to Scrob instead of Trakt</string>\n<string name="scrob_login_title">Scrob connection</string>\n<string name="scrob_login_summary">Connect using your Scrob URL and API key</string>\n<string name="scrob_back_button_title">Show in-app Back button</string>\n<string name="scrob_back_button_summary">Show a touch Back control for car displays without a hardware Back key</string>\n<string name="scrob_diagnostics_title">NOVA Scrob diagnostics</string>\n<string name="scrob_diagnostics_summary">v0.1.7 · Base NOVA v6.4.64 · last webhook status</string>\n</resources>\n''')
+
+# Touch-accessible Back control for Carlinkit/other displays without a physical Back key.
+back_provider=r'''package com.archos.mediacenter.video.scrob;
+import android.app.Activity;
+import android.app.Application;
+import android.content.Context;
+import android.os.Bundle;
+import android.view.Gravity;
+import android.view.ViewGroup;
+import android.widget.TextView;
+import android.graphics.Color;
+import android.graphics.drawable.GradientDrawable;
+import androidx.preference.PreferenceManager;
+
+public class ScrobInitProvider extends android.content.ContentProvider implements Application.ActivityLifecycleCallbacks {
+    private static final String BACK_TAG="nova_scrob_back_button";
+    private int dp(Context c,int n){return (int)(n*c.getResources().getDisplayMetrics().density);}
+    @Override public boolean onCreate(){
+        Context c=getContext(); if(c!=null)((Application)c.getApplicationContext()).registerActivityLifecycleCallbacks(this); return true;
+    }
+    private void addBack(Activity a){
+        if(!PreferenceManager.getDefaultSharedPreferences(a).getBoolean("scrob_back_button",true))return;
+        ViewGroup root=a.findViewById(android.R.id.content); if(root==null||root.findViewWithTag(BACK_TAG)!=null)return;
+        TextView b=new TextView(a); b.setText("‹"); b.setTextColor(Color.WHITE); b.setTextSize(34); b.setGravity(Gravity.CENTER);
+        GradientDrawable bg=new GradientDrawable(); bg.setColor(0x99000000); bg.setShape(GradientDrawable.OVAL); b.setBackground(bg);
+        int sz=dp(a,48); android.widget.FrameLayout.LayoutParams lp=new android.widget.FrameLayout.LayoutParams(sz,sz,Gravity.TOP|Gravity.START);
+        lp.setMargins(dp(a,12),dp(a,12),0,0); b.setLayoutParams(lp); b.setElevation(dp(a,8));
+        b.setTag(BACK_TAG); b.setContentDescription("Back"); b.setOnClickListener(v->a.onBackPressed()); root.addView(b);
+    }
+    @Override public void onActivityResumed(Activity a){addBack(a);} @Override public void onActivityCreated(Activity a,Bundle b){}
+    @Override public void onActivityStarted(Activity a){} @Override public void onActivityPaused(Activity a){} @Override public void onActivityStopped(Activity a){}
+    @Override public void onActivitySaveInstanceState(Activity a,Bundle b){} @Override public void onActivityDestroyed(Activity a){}
+    @Override public android.database.Cursor query(android.net.Uri u,String[] p,String s,String[] a,String so){return null;}
+    @Override public String getType(android.net.Uri u){return null;} @Override public android.net.Uri insert(android.net.Uri u,android.content.ContentValues v){return null;}
+    @Override public int delete(android.net.Uri u,String s,String[] a){return 0;} @Override public int update(android.net.Uri u,android.content.ContentValues v,String s,String[] a){return 0;}
+}
+'''
+write('Video/src/main/java/com/archos/mediacenter/video/scrob/ScrobInitProvider.java',back_provider)
 
 # Permanent parallel-install identity + visible branding.
 # IMPORTANT: only patch the active applicationId line. Older revisions accidentally
@@ -267,6 +365,9 @@ matches=list(app_id_re.finditer(b))
 if len(matches)!=1:
     raise RuntimeError(f'Expected exactly one active stock NOVA applicationId, found {len(matches)}')
 b=app_id_re.sub(lambda m: f'{m.group(1)}applicationId = \"{APP_ID}\"', b, count=1)
+b,vc_n=re.subn(r'(?m)^(\s*)versionCode\s*=\s*6040064\s*$', r'\g<1>versionCode = 6040065', b, count=1)
+b,vn_n=re.subn(r"(?m)^(\s*)versionName\s*=\s*['\"]6\.4\.64['\"]\s*$", r"\g<1>versionName = '0.1.7'", b, count=1)
+if vc_n!=1 or vn_n!=1: raise RuntimeError(f'Could not set NOVA Scrob package version: versionCode={vc_n}, versionName={vn_n}')
 write(build,b)
 
 # Update explicit package references if any exist in the manifest/provider-path files.
@@ -281,6 +382,10 @@ ET.register_namespace('android',ANDROID_NS)
 root=ET.fromstring(m)
 app=root.find('application')
 if app is None: raise RuntimeError('No <application> in AndroidManifest.xml')
+provider=ET.SubElement(app,'provider')
+provider.set(A+'name','com.archos.mediacenter.video.scrob.ScrobInitProvider')
+provider.set(A+'authorities',APP_ID+'.scrob-init')
+provider.set(A+'exported','false')
 app.set(A+'label','NOVA Scrob')
 app.set(A+'icon','@mipmap/nova_scrob_icon')
 app.set(A+'roundIcon','@mipmap/nova_scrob_icon')
@@ -364,4 +469,4 @@ if active_ids != [APP_ID]: raise RuntimeError(f'Unexpected active applicationId(
 final_manifest=read(manifest)
 if 'NOVA Scrob' not in final_manifest or '@mipmap/nova_scrob_icon' not in final_manifest:
     raise RuntimeError('Branding did not apply to AndroidManifest.xml')
-print('NOVA Scrob v0.1.6 patch applied. appId='+APP_ID)
+print('NOVA Scrob v'+SCROB_VERSION+' patch applied. appId='+APP_ID)

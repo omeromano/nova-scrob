@@ -1,9 +1,10 @@
-# v0.1.6 scope
+# v0.1.7 scope
 
-- Replace the v0.1.5 password-login experiment with Scrob's Kodi-compatible API-key integration.
-- Persist only Scrob URL and API key.
-- Keep the existing NOVA playback hook and 60-second progress cadence.
-- Send the same webhook path/auth style as `ellite/scrob-kodi`.
-- Use proper adaptive launcher resources to avoid white launcher padding.
-- Keep package ID and signing identity unchanged.
-- No library synchronization, ratings synchronization, or other new features.
+- Fix playback webhook capture by routing NOVA's existing Trakt playback lifecycle callbacks to Scrob when Scrob is enabled.
+- Preserve NOVA's existing scheduler; report progress at the patched 60-second cadence.
+- Map initial play/resume to `Player.OnPlay`, periodic samples to `Player.OnAVChange`, pause to `Player.OnPause`, and stop to `Player.OnStop`, matching `scrob-kodi`.
+- Add a touch-accessible in-app Back control for Carlinkit-style displays without a physical Back key; keep normal Android Back behavior intact.
+- Add lightweight Scrob diagnostics without displaying or logging the API key.
+- Display NOVA Scrob v0.1.7 and base NOVA v6.4.64 in diagnostics/preferences.
+- Add `UPSTREAM.md` provenance.
+- Keep package ID, signing identity, Scrob API-key configuration, and branding unchanged.

@@ -11,7 +11,7 @@ permissions:
 
 env:
   NOVA_TAG: v6.4.64
-  APP_VERSION: 0.1.6
+  APP_VERSION: 0.1.7
   APP_ID: org.courville.novascrob
 
 jobs:
@@ -49,6 +49,10 @@ jobs:
           grep -R "scrob_login\|scrob_enabled" -n nova-src/Video/res/xml/preferences_video.xml
           test -f nova-src/Video/src/main/java/com/archos/mediacenter/video/scrob/ScrobLoginPreference.java
           grep -n "class ScrobLoginPreference" nova-src/Video/src/main/java/com/archos/mediacenter/video/scrob/ScrobLoginPreference.java
+          grep -n "Scrob.postPlayback" nova-src/MediaLib/src/com/archos/mediacenter/utils/trakt/Trakt.java
+          test -f nova-src/Video/src/main/java/com/archos/mediacenter/video/scrob/ScrobDiagnosticsPreference.java
+          test -f nova-src/Video/src/main/java/com/archos/mediacenter/video/scrob/ScrobInitProvider.java
+          grep -n "scrob_back_button\|scrob_diagnostics" nova-src/Video/res/xml/preferences_video.xml
           grep -F "applicationId = \"${APP_ID}\"" nova-src/Video/build.gradle
           grep -n "NOVA Scrob" nova-src/Video/AndroidManifest.xml
           test -f nova-src/Video/res/mipmap-nodpi/nova_scrob_icon.png

@@ -1,4 +1,4 @@
-# NOVA Scrob v0.1.6
+# NOVA Scrob v0.1.7
 
 Minimal NOVA Video Player fork for direct playback tracking to a self-hosted Scrob instance.
 
