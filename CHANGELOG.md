@@ -1,5 +1,18 @@
 # Changelog
 
+## v0.2.0-dev.4
+
+### Resolved NOVA release-manifest source acquisition
+
+- Fixed the dev.3 failure where `repo init -b v6.4.72` treated the release tag as a branch and searched for nonexistent `refs/heads/v6.4.72`.
+- Replaced historical source reconstruction through moving manifest branches with NOVA's published `manifest.xml` release asset.
+- Mirror NOVA's own `aos-Fdroid/update.sh` release-alignment strategy: each project is checked out at the exact revision recorded in the release manifest.
+- Reject the release manifest unless every project revision is a full immutable 40-character Git SHA.
+- Preserve the upstream `manifest.xml` unchanged as `UPSTREAM_LOCK.xml`; it is now the lock file itself rather than a newly resolved snapshot of moving branches.
+- Verify the AVP revision matches expected release commit prefix `eacf19d`.
+- Verify unpatched `Video/build.gradle` already declares `versionName = '6.4.72'` before Scrob patch preflight.
+- Keep the final APK `versionName=6.4.72` guard, signing, patch architecture, and all v0.1.7 Scrob behavior unchanged.
+
 ## v0.2.0-dev.3
 
 ### CI source-fetch execution fix

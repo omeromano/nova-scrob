@@ -55,7 +55,6 @@ jobs:
           LOCK_DIR="$GITHUB_WORKSPACE/dist" \
             bash scripts/fetch_nova_source.sh "$GITHUB_WORKSPACE/nova-src"
 
-          MANIFEST_SHA="$(git -C nova-src/.repo/manifests rev-parse HEAD)"
           AVP_SHA="$(git -C nova-src/AVP rev-parse HEAD)"
           VIDEO_SHA="$(git -C nova-src/Video rev-parse HEAD)"
           MEDIALIB_SHA="$(git -C nova-src/MediaLib rev-parse HEAD)"
@@ -64,7 +63,7 @@ jobs:
           {
             echo
             echo "### Resolved upstream source"
-            echo "- aos-AVP release tag: \`${MANIFEST_SHA}\`"
+            echo "- Upstream release manifest: \`releases/download/${NOVA_TAG}/manifest.xml\`"
             echo "- AVP project: \`${AVP_SHA}\`"
             echo "- Video: \`${VIDEO_SHA}\`"
             echo "- MediaLib: \`${MEDIALIB_SHA}\`"
@@ -72,7 +71,7 @@ jobs:
             echo "- Full immutable manifest: \`UPSTREAM_LOCK.xml\` build artifact"
           } >> "$GITHUB_STEP_SUMMARY"
 
-      - name: Preflight NOVA v6.4.72 source
+      - name: Preflight resolved NOVA source
         shell: bash
         run: |
           set -euxo pipefail

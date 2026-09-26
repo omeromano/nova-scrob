@@ -17,61 +17,50 @@ for name in NOVA_TAG NOVA_BASE_VERSION NOVA_BASE_COMMIT NOVA_MANIFEST; do
   fi
 done
 
-if [[ -n "${REPO_BIN:-}" ]]; then
-  repo_bin="$REPO_BIN"
-elif command -v repo >/dev/null 2>&1; then
-  repo_bin="$(command -v repo)"
-else
-  repo_bin="$(mktemp)"
-  trap 'rm -f "$repo_bin"' EXIT
-  curl -fsSL https://storage.googleapis.com/git-repo-downloads/repo -o "$repo_bin"
-  chmod +x "$repo_bin"
-fi
+mkdir -p "$LOCK_DIR"
+MANIFEST_URL="https://github.com/nova-video-player/aos-AVP/releases/download/${NOVA_TAG}/manifest.xml"
+LOCK_XML="$LOCK_DIR/UPSTREAM_LOCK.xml"
 
-rm -rf "$DEST"
-mkdir -p "$DEST" "$LOCK_DIR"
+printf 'Downloading resolved NOVA release manifest: %s\n' "$MANIFEST_URL"
+curl -fL --retry 3 --retry-all-errors "$MANIFEST_URL" -o "$LOCK_XML"
 
-(
-  cd "$DEST"
-  "$repo_bin" init \
-    -u https://github.com/nova-video-player/aos-AVP \
-    -b "$NOVA_TAG" \
-    -m "$NOVA_MANIFEST" \
-    --depth=1
-
-  "$repo_bin" sync \
-    -c \
-    -j"$JOBS" \
-    --no-tags \
-    --no-clone-bundle
-
-  "$repo_bin" manifest -r > "$LOCK_DIR/UPSTREAM_LOCK.xml"
-)
+python3 "$PROJECT_ROOT/scripts/fetch_nova_release.py" \
+  "$LOCK_XML" \
+  "$DEST" \
+  --jobs "$JOBS" \
+  --expected-avp-prefix "$NOVA_BASE_COMMIT"
 
 for path in AVP Video MediaLib FileCoreLibrary; do
   if [[ ! -d "$DEST/$path/.git" && ! -f "$DEST/$path/.git" ]]; then
-    echo "Required NOVA project is missing after repo sync: $path" >&2
+    echo "Required NOVA project is missing after release-manifest materialization: $path" >&2
     exit 3
   fi
 done
 
-manifest_commit="$(git -C "$DEST/.repo/manifests" rev-parse HEAD)"
-case "$manifest_commit" in
+AVP_SHA="$(git -C "$DEST/AVP" rev-parse HEAD)"
+case "$AVP_SHA" in
   "$NOVA_BASE_COMMIT"*) ;;
   *)
-    echo "Expected aos-AVP release-tag commit prefix $NOVA_BASE_COMMIT for $NOVA_TAG, got $manifest_commit" >&2
+    echo "Expected aos-AVP release commit prefix $NOVA_BASE_COMMIT for $NOVA_TAG, got $AVP_SHA" >&2
     exit 4
     ;;
 esac
 
+# Verify the resolved Video source is actually the requested release before patching.
+if ! grep -Eq "versionName[[:space:]]*=[[:space:]]*['\"]${NOVA_BASE_VERSION}['\"]" "$DEST/Video/build.gradle"; then
+  echo "Resolved Video source does not declare NOVA versionName ${NOVA_BASE_VERSION}" >&2
+  grep -n "versionName" "$DEST/Video/build.gradle" | head -20 >&2 || true
+  exit 5
+fi
+
 python3 "$PROJECT_ROOT/scripts/summarize_upstream_lock.py" \
-  "$LOCK_DIR/UPSTREAM_LOCK.xml" \
+  "$LOCK_XML" \
   --release "$NOVA_TAG" \
   --version "$NOVA_BASE_VERSION" \
-  --manifest-commit "$manifest_commit" \
+  --manifest-commit "$AVP_SHA" \
   > "$LOCK_DIR/UPSTREAM_LOCK.txt"
 
-sha256sum "$LOCK_DIR/UPSTREAM_LOCK.xml" > "$LOCK_DIR/UPSTREAM_LOCK.sha256"
+sha256sum "$LOCK_XML" > "$LOCK_DIR/UPSTREAM_LOCK.sha256"
 
-printf 'Resolved NOVA %s source:\n' "$NOVA_TAG"
+printf 'Resolved NOVA %s source from release manifest:\n' "$NOVA_TAG"
 cat "$LOCK_DIR/UPSTREAM_LOCK.txt"

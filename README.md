@@ -1,4 +1,4 @@
-# NOVA Scrob v0.2.0-dev.3
+# NOVA Scrob v0.2.0-dev.4
 
 Minimal NOVA Video Player fork for direct playback tracking to a self-hosted Scrob instance.
 
@@ -6,9 +6,9 @@ Minimal NOVA Video Player fork for direct playback tracking to a self-hosted Scr
 
 The 0.2.x line is focused on maintainability: keep the working v0.1.7 playback behavior while making the Scrob patch easier to inspect, test, and carry forward when NOVA releases a new version.
 
-v0.2.0-dev.3 carries forward the dev.2 NOVA v6.4.72 source-resolution work and fixes the CI invocation of the new source-fetch helper. The dev.2 GitHub run stopped before source acquisition because the helper's executable bit was not preserved in the committed checkout. dev.3 invokes it explicitly through `bash`, so CI no longer depends on filesystem mode preservation.
+v0.2.0-dev.4 corrects the upstream-source strategy after dev.3 showed that `repo init -b v6.4.72` treats the release tag as a branch name. More importantly, NOVA's tagged `v6_4.xml` still references moving component branches, so simply changing the ref syntax would not guarantee 6.4.72 source.
 
-The underlying source strategy remains the same: `aos-AVP` is a manifest/entry-point repository, so 0.2.x follows NOVA's documented `repo init` / `repo sync` model instead of assuming the root Git submodule pointers represent the release's effective component sources. `aos-AVP` is a manifest/entry-point repository, so dev.2 follows NOVA's documented `repo init` / `repo sync` model instead of assuming the root Git submodule pointers represent the release's effective component sources.
+Dev.4 instead downloads NOVA's resolved `manifest.xml` release asset and materializes every component at the exact Git SHA recorded there. This mirrors the mechanism NOVA's own `aos-Fdroid/update.sh` uses to align its submodules with a published release.
 
 ## Upstream source and locking
 
@@ -16,7 +16,7 @@ The underlying source strategy remains the same: `aos-AVP` is a manifest/entry-p
 
 - NOVA release tag: `v6.4.72`
 - expected AVP commit prefix: `eacf19d`
-- manifest: `v6_4.xml`
+- release manifest asset: `manifest.xml`
 
 Fetch the release source with:
 
@@ -26,15 +26,15 @@ bash scripts/fetch_nova_source.sh
 
 That script:
 
-1. initializes NOVA using the selected upstream release tag and manifest;
-2. resolves every component repository through NOVA's manifest;
-3. verifies the `AVP` checkout matches the expected release commit;
-4. writes `dist/UPSTREAM_LOCK.xml`, a resolved manifest whose project revisions are immutable Git SHAs;
-5. writes `dist/UPSTREAM_LOCK.txt` and a SHA-256 for the lock file.
+1. downloads `releases/download/v6.4.72/manifest.xml` from `aos-AVP`;
+2. rejects the manifest unless every project revision is an immutable 40-character Git SHA;
+3. materializes every NOVA project at its exact recorded SHA;
+4. applies manifest `copyfile` directives;
+5. verifies the `AVP` revision matches expected release commit prefix `eacf19d`;
+6. verifies the untouched `Video/build.gradle` declares `versionName = '6.4.72'` before patching;
+7. preserves the downloaded manifest as `dist/UPSTREAM_LOCK.xml`, with a text summary and SHA-256 checksum.
 
-The CI build uses that resolved source tree for the patch and APK build. The lock files are uploaded beside the APK and attached to tagged GitHub releases, so the exact component revisions used for a particular APK are recorded rather than inferred from moving branch names later.
-
-The finished APK is also rejected if Android package metadata does not report the expected upstream `versionName` (`6.4.72`). This specifically guards against the mismatch discovered in dev.1, where the root tag was v6.4.64 but the effective `Video` source built as v6.4.29.
+The finished APK is also rejected if Android package metadata does not report the expected upstream `versionName` (`6.4.72`).
 
 ## Scrob behavior carried forward from v0.1.7
 

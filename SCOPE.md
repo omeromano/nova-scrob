@@ -10,28 +10,36 @@ Make the Scrob fork cheaper and safer to maintain across upstream NOVA releases 
 - Moved injected source into reviewable templates.
 - Added centralized metadata and non-destructive patch preflight.
 
-## v0.2.0-dev.2 — upstream provenance and current-base test
+## v0.2.0-dev.2 — upstream provenance attempt
 
 No intended Scrob behavior change.
 
-- Build against NOVA v6.4.72 rather than merely probing it.
-- Assemble upstream source through NOVA's own release manifest using Android `repo`.
-- Verify the selected AVP release commit before patching.
-- Capture every resolved component SHA in an immutable `UPSTREAM_LOCK.xml` and publish it with the APK.
-- Fail if the final APK's upstream version is not exactly 6.4.72.
-- Use the existing patch preflight as a hard gate: if v6.4.72 moved one of our patch surfaces, dev.2 should fail there with the named anchor rather than silently falling back to an older base.
+- Moved the target base to NOVA v6.4.72.
+- Added upstream source locking and APK version guards.
+- The run failed before this design was fully exercised because the new fetch helper lost its executable bit.
 
 ## v0.2.0-dev.3 — CI execution hotfix
 
-No intended Scrob or upstream-selection change.
+No intended Scrob behavior change.
 
-- Fix the dev.2 `Permission denied` failure by invoking `scripts/fetch_nova_source.sh` through `bash`.
-- Preserve the v6.4.72 manifest/lock/preflight/version-guard design unchanged.
-- Because dev.2 failed before source acquisition, dev.3 becomes the first meaningful v6.4.72 compatibility run.
+- Invoke the source-fetch helper explicitly with `bash`.
+- The run then exposed a deeper source-resolution issue: `repo init -b v6.4.72` treats the tag as a branch, and the tagged manifest still points at moving component branches.
+
+## v0.2.0-dev.4 — resolved release source
+
+No intended Scrob behavior change.
+
+- Use NOVA's published `manifest.xml` release asset for v6.4.72 as the source of truth.
+- Materialize every project at the exact immutable SHA recorded by that release manifest.
+- Reject unresolved/non-SHA project revisions.
+- Verify AVP matches expected release commit prefix `eacf19d`.
+- Verify the untouched Video source already declares `versionName = '6.4.72'` before patching.
+- Publish the release manifest itself as `UPSTREAM_LOCK.xml` with text and SHA-256 summaries.
+- Keep the final APK version guard.
 
 ## Next 0.2.x steps
 
-1. Adapt only the patch anchors that v6.4.72 actually changed, if dev.3 preflight identifies any.
+1. Adapt only the patch anchors that v6.4.72 actually changed, if dev.4 preflight identifies any.
 2. Reduce the amount of Scrob-owned logic injected directly into `PlayerActivity`, leaving the smallest practical set of upstream hooks.
 3. Add explicit patch-surface reporting/tests so future NOVA updates immediately show which integration point changed.
 4. Close 0.2.x only after an install/update test confirms the new build upgrades v0.1.7 in place and playback events still reach Scrob correctly.
