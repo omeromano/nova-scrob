@@ -303,8 +303,8 @@ public class ScrobDiagnosticsPreference extends Preference {
 }
 '''
 write('Video/src/main/java/com/archos/mediacenter/video/scrob/ScrobDiagnosticsPreference.java',diagnostics_pref)
-if '\\nBase NOVA:' in diagnostics_pref:
-    raise RuntimeError('Diagnostics header contains literal \\n escapes instead of line breaks')
+if r'\\nBase NOVA:' in diagnostics_pref:
+    raise RuntimeError('Diagnostics header contains double-escaped \\n instead of a Java newline escape')
 
 
 # Add a compact Scrob category. The login preference itself owns the modal.
