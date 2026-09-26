@@ -331,6 +331,7 @@ pa_replace('    private static final int MENU_INFO_ID = 101;',
            '    private static final int MENU_BACK_ID = 100;\n    private static final int MENU_INFO_ID = 101;')
 pa_replace('    private VideoDbInfo mVideoInfo;', '''    private VideoDbInfo mVideoInfo;
     private boolean mScrobPlaying = false;
+    private boolean mScrobStopSent = false;
     private final Handler mScrobHandler = new Handler(Looper.getMainLooper());
     private final Runnable mScrobProgress = new Runnable() {
         @Override public void run() {
@@ -340,14 +341,25 @@ pa_replace('    private VideoDbInfo mVideoInfo;', '''    private VideoDbInfo mVi
         }
     };
     private void scrobPlayback(String method, boolean ended) {
-        if (!Scrob.isEnabled(this) || mVideoInfo == null || mPlayer == null || (!"Player.OnStop".equals(method) && !mPlayer.isInPlaybackState())) {
+        final boolean stopping = "Player.OnStop".equals(method);
+        if (!Scrob.isEnabled(this) || mVideoInfo == null || (!stopping && (mPlayer == null || !mPlayer.isInPlaybackState()))) {
             Scrob.recordStage(this, "player callback skipped: " + method, mVideoInfo);
             return;
         }
-        int duration = mPlayer.getDuration();
-        int position = mPlayer.getCurrentPosition();
+        if (stopping && mScrobStopSent) {
+            Scrob.recordStage(this, "duplicate stop suppressed", mVideoInfo);
+            return;
+        }
+        int duration = 0;
+        int position = Math.max(0, mLastPosition);
+        if (mPlayer != null) {
+            duration = mPlayer.getDuration();
+            if (mPlayer.isInPlaybackState()) position = mPlayer.getCurrentPosition();
+        }
+        if (duration <= 0 && mVideoInfo.duration > 0) duration = (int)Math.min(Integer.MAX_VALUE, mVideoInfo.duration);
         if (duration > 0) mVideoInfo.duration = duration;
         float progress = duration > 0 ? Math.max(0f, Math.min(100f, position * 100f / duration)) : 0f;
+        if (stopping) mScrobStopSent = true;
         Scrob.recordStage(this, "player callback: " + method, mVideoInfo);
         Scrob.postPlaybackAsync(this, mVideoInfo, progress, method, ended);
     }
@@ -365,11 +377,11 @@ pa_replace('            mInfoMenuItem = menu.add(MENU_FILE_ACTIONS_GROUP, MENU_I
                 backMenuItem.setIcon(R.drawable.ic_nova_scrob_back).setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS);
             }
             mInfoMenuItem = menu.add(MENU_FILE_ACTIONS_GROUP, MENU_INFO_ID, Menu.NONE, R.string.menu_info);''')
-pa_replace('        switch (item.getItemId()) {\n            case MENU_LOCK_ID:', '        switch (item.getItemId()) {\n            case MENU_BACK_ID:\n                getOnBackPressedDispatcher().onBackPressed();\n                return true;\n            case MENU_LOCK_ID:')
-pa_replace('        public void onPlay(int state) {\n            if (mSubtitleManager != null)', '        public void onPlay(int state) {\n            scrobPlayback("Player.OnPlay", false);\n            startScrobProgress();\n            if (mSubtitleManager != null)')
+pa_replace('        switch (item.getItemId()) {\n            case MENU_LOCK_ID:', '        switch (item.getItemId()) {\n            case MENU_BACK_ID:\n                scrobPlayback("Player.OnStop", false);\n                stopScrobProgress();\n                getOnBackPressedDispatcher().onBackPressed();\n                return true;\n            case MENU_LOCK_ID:')
+pa_replace('        public void onPlay(int state) {\n            if (mSubtitleManager != null)', '        public void onPlay(int state) {\n            mScrobStopSent = false;\n            scrobPlayback("Player.OnPlay", false);\n            startScrobProgress();\n            if (mSubtitleManager != null)')
 pa_replace('        public void onPause(int state) {', '        public void onPause(int state) {\n            scrobPlayback("Player.OnPause", false);\n            stopScrobProgress();')
 pa_replace('        public void onCompletion() {\n            if (log.isDebugEnabled()) log.debug("onCompletion");', '        public void onCompletion() {\n            if (log.isDebugEnabled()) log.debug("onCompletion");\n            scrobPlayback("Player.OnStop", true);\n            stopScrobProgress();')
-pa_replace('    private void finishWithResult() {\n        sendExternalPlayerResult();', '    private void finishWithResult() {\n        scrobPlayback("Player.OnStop", false);\n        stopScrobProgress();\n        sendExternalPlayerResult();')
+pa_replace('    public void finish() {\n        // Send result before finishing if we haven\'t already', '    public void finish() {\n        scrobPlayback("Player.OnStop", false);\n        stopScrobProgress();\n        // Send result before finishing if we haven\'t already')
 pa_replace('    protected void onDestroy() {\n        if (log.isDebugEnabled()) log.debug("onDestroy");', '    protected void onDestroy() {\n        if (log.isDebugEnabled()) log.debug("onDestroy");\n        stopScrobProgress();')
 write(player_activity,pa)
 
@@ -494,4 +506,14 @@ if active_ids != [APP_ID]: raise RuntimeError(f'Unexpected active applicationId(
 final_manifest=read(manifest)
 if 'NOVA Scrob' not in final_manifest or '@mipmap/nova_scrob_icon' not in final_manifest:
     raise RuntimeError('Branding did not apply to AndroidManifest.xml')
+final_pa=read(player_activity)
+for needle in [
+    'private boolean mScrobStopSent = false;',
+    'duplicate stop suppressed',
+    'case MENU_BACK_ID:',
+    'scrobPlayback("Player.OnStop", false);',
+    'public void finish() {',
+]:
+    if needle not in final_pa:
+        raise RuntimeError('Player stop/back integration missing: '+needle)
 print('NOVA Scrob v'+SCROB_VERSION+' patch applied. appId='+APP_ID)
