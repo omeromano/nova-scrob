@@ -1,4 +1,4 @@
-# NOVA Scrob v0.2.0-dev.4
+# NOVA Scrob v0.2.0-dev.5
 
 Minimal NOVA Video Player fork for direct playback tracking to a self-hosted Scrob instance.
 
@@ -6,16 +6,14 @@ Minimal NOVA Video Player fork for direct playback tracking to a self-hosted Scr
 
 The 0.2.x line is focused on maintainability: keep the working v0.1.7 playback behavior while making the Scrob patch easier to inspect, test, and carry forward when NOVA releases a new version.
 
-v0.2.0-dev.4 corrects the upstream-source strategy after dev.3 showed that `repo init -b v6.4.72` treats the release tag as a branch name. More importantly, NOVA's tagged `v6_4.xml` still references moving component branches, so simply changing the ref syntax would not guarantee 6.4.72 source.
-
-Dev.4 instead downloads NOVA's resolved `manifest.xml` release asset and materializes every component at the exact Git SHA recorded there. This mirrors the mechanism NOVA's own `aos-Fdroid/update.sh` uses to align its submodules with a published release.
+v0.2.0-dev.5 keeps dev.4's resolved release-manifest source strategy but removes an invalid assumption that the `AVP` project SHA inside the release manifest must equal the GitHub release/tag commit shown on the aos-AVP release page. The release manifest is already the immutable multi-repository lock; its project revisions are authoritative for source assembly.
 
 ## Upstream source and locking
 
 `nova-scrob.properties` selects:
 
 - NOVA release tag: `v6.4.72`
-- expected AVP commit prefix: `eacf19d`
+- expected base version: `6.4.72`
 - release manifest asset: `manifest.xml`
 
 Fetch the release source with:
@@ -30,33 +28,23 @@ That script:
 2. rejects the manifest unless every project revision is an immutable 40-character Git SHA;
 3. materializes every NOVA project at its exact recorded SHA;
 4. applies manifest `copyfile` directives;
-5. verifies the `AVP` revision matches expected release commit prefix `eacf19d`;
-6. verifies the untouched `Video/build.gradle` declares `versionName = '6.4.72'` before patching;
-7. preserves the downloaded manifest as `dist/UPSTREAM_LOCK.xml`, with a text summary and SHA-256 checksum.
+5. verifies the untouched `Video/build.gradle` declares `versionName = '6.4.72'` before patching;
+6. preserves the downloaded manifest as `dist/UPSTREAM_LOCK.xml`, with a text summary and SHA-256 checksum.
 
-The finished APK is also rejected if Android package metadata does not report the expected upstream `versionName` (`6.4.72`).
+The text lock summary reports the resolved `AVP`, `Video`, `MediaLib`, `FileCoreLibrary`, and all other project revisions from the release manifest. The finished APK is rejected if Android package metadata does not report upstream `versionName='6.4.72'`.
 
 ## Scrob behavior carried forward from v0.1.7
 
 - Scrob URL + API key authentication.
-- `POST /api/proxy/webhooks/kodi?api_key=...` using Kodi-compatible playback payloads.
-- `Player.OnPlay`, `Player.OnPause`, `Player.OnStop`, and 60-second `Player.OnAVChange` progress updates.
+- Kodi-compatible webhook payloads.
+- `Player.OnPlay`, `Player.OnPause`, `Player.OnStop`, and 60-second progress updates.
 - Player Back action sends the final stop and suppresses duplicate stops.
 - Diagnostics show fork/base versions, connection state, last webhook, HTTP status, event, title, stage, and last error.
-- Package identity remains `org.courville.novascrob`, so NOVA Scrob installs separately from stock NOVA and upgrades earlier NOVA Scrob builds signed with the same key.
+- Package identity remains `org.courville.novascrob`.
 
 ## Patch architecture
 
-Project/upstream metadata lives in `nova-scrob.properties`.
-
-Patch implementation remains split by concern:
-
-- `scripts/patches/transport.py` — installs the Scrob webhook transport.
-- `scripts/patches/preferences.py` — Scrob settings, connection modal, diagnostics UI.
-- `scripts/patches/player.py` — the small set of NOVA `PlayerActivity` hooks.
-- `scripts/patches/identity.py` — package ID, manifest branding, launcher assets.
-- `scripts/patches/verify.py` — post-patch source assertions.
-- `scripts/templates/` — Java/XML files added to NOVA as normal source files.
+Project/upstream metadata lives in `nova-scrob.properties`. Patch implementation remains split by concern under `scripts/patches/`, while injected Java/XML files live under `scripts/templates/`.
 
 Run a non-destructive patch preflight with:
 

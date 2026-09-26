@@ -89,7 +89,6 @@ def main():
     parser.add_argument("dest", type=Path)
     parser.add_argument("--base-url", default="https://github.com/nova-video-player")
     parser.add_argument("--jobs", type=int, default=4)
-    parser.add_argument("--expected-avp-prefix", default="")
     args = parser.parse_args()
 
     projects = parse_manifest(args.manifest)
@@ -97,11 +96,6 @@ def main():
     avp = next((p for p in projects if p["path"] == "AVP" or p["name"] == "aos-AVP"), None)
     if avp is None:
         raise RuntimeError("Resolved release manifest does not contain the AVP project")
-    if args.expected_avp_prefix and not avp["revision"].startswith(args.expected_avp_prefix.lower()):
-        raise RuntimeError(
-            f"Expected AVP revision prefix {args.expected_avp_prefix}, got {avp['revision']}"
-        )
-
     if args.dest.exists():
         shutil.rmtree(args.dest)
     args.dest.mkdir(parents=True)

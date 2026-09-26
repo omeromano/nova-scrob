@@ -25,7 +25,7 @@ def main():
     if args.version:
         print(f"Expected APK base version: {args.version}")
     if args.manifest_commit:
-        print(f"aos-AVP release-tag commit: {args.manifest_commit}")
+        print(f"Resolved AVP project revision: {args.manifest_commit}")
     print(f"Resolved projects: {len(projects)}")
     print()
     for path, name, revision in sorted(projects):

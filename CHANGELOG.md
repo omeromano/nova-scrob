@@ -1,5 +1,16 @@
 # Changelog
 
+## v0.2.0-dev.5
+
+### Release-manifest provenance guard fix
+
+- Fixed the dev.4 immediate failure after successfully downloading the v6.4.72 resolved release manifest.
+- Removed the invalid requirement that the resolved `AVP` project revision must begin with the GitHub release/tag commit shown on the aos-AVP release page.
+- Treat the release `manifest.xml` as the authoritative multi-repository lock: every project must still have a full 40-character Git SHA and is checked out exactly at that SHA.
+- Keep the pre-patch `Video/build.gradle` `versionName=6.4.72` guard and final APK `versionName=6.4.72` guard.
+- Record the actual resolved AVP project revision from the manifest in `UPSTREAM_LOCK.txt` rather than embedding a potentially misleading release-page commit in app diagnostics.
+- No intentional change to Scrob transport, player events, authentication, package identity, signing, or branding.
+
 ## v0.2.0-dev.4
 
 ### Resolved NOVA release-manifest source acquisition
@@ -9,7 +20,7 @@
 - Mirror NOVA's own `aos-Fdroid/update.sh` release-alignment strategy: each project is checked out at the exact revision recorded in the release manifest.
 - Reject the release manifest unless every project revision is a full immutable 40-character Git SHA.
 - Preserve the upstream `manifest.xml` unchanged as `UPSTREAM_LOCK.xml`; it is now the lock file itself rather than a newly resolved snapshot of moving branches.
-- Verify the AVP revision matches expected release commit prefix `eacf19d`.
+- Attempted to verify the resolved AVP project SHA against release-page commit `eacf19d` (removed in dev.5 because these identify different release layers).
 - Verify unpatched `Video/build.gradle` already declares `versionName = '6.4.72'` before Scrob patch preflight.
 - Keep the final APK `versionName=6.4.72` guard, signing, patch architecture, and all v0.1.7 Scrob behavior unchanged.
 
@@ -29,7 +40,7 @@
 - Moved the actual build base from NOVA v6.4.64 to v6.4.72.
 - Replaced root-submodule source acquisition with NOVA's manifest-driven `repo init` / `repo sync` workflow.
 - Added `scripts/fetch_nova_source.sh` so CI and a developer machine can use the same upstream acquisition path.
-- Verify the v6.4.72 `AVP` checkout against release commit prefix `eacf19d` before patching.
+- Initially attempted to verify the v6.4.72 AVP checkout against release-page commit `eacf19d`; dev.5 replaces this with release-manifest SHA and Video-version verification.
 - Generate `UPSTREAM_LOCK.xml` from `repo manifest -r`, recording immutable component SHAs for the exact source tree used by each build.
 - Upload the resolved XML lock, human-readable lock summary, and lock checksum beside every APK and GitHub release.
 - Reject the built APK unless its Android metadata reports upstream `versionName=6.4.72`, preventing a recurrence of the dev.1 v6.4.64/v6.4.29 mismatch.

@@ -19,7 +19,6 @@ def load_properties(path=PROPERTIES_FILE):
         "APP_ID",
         "NOVA_TAG",
         "NOVA_BASE_VERSION",
-        "NOVA_BASE_COMMIT",
         "NOVA_MANIFEST",
     }
     missing = sorted(required - values.keys())

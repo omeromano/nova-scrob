@@ -27,7 +27,7 @@ jobs:
           source nova-scrob.properties
           set +a
 
-          for name in APP_VERSION APP_ID NOVA_TAG NOVA_BASE_VERSION NOVA_BASE_COMMIT NOVA_MANIFEST; do
+          for name in APP_VERSION APP_ID NOVA_TAG NOVA_BASE_VERSION NOVA_MANIFEST; do
             value="${!name}"
             echo "$name=$value" >> "$GITHUB_ENV"
           done
@@ -38,7 +38,6 @@ jobs:
             echo "### NOVA Scrob build metadata"
             echo "- Fork: v$APP_VERSION"
             echo "- NOVA release: $NOVA_TAG"
-            echo "- AVP commit: $NOVA_BASE_COMMIT"
             echo "- Manifest: $NOVA_MANIFEST"
           } >> "$GITHUB_STEP_SUMMARY"
 

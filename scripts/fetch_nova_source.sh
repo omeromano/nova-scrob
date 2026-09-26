@@ -10,7 +10,7 @@ JOBS="${JOBS:-4}"
 # shellcheck disable=SC1091
 source "$PROJECT_ROOT/nova-scrob.properties"
 
-for name in NOVA_TAG NOVA_BASE_VERSION NOVA_BASE_COMMIT NOVA_MANIFEST; do
+for name in NOVA_TAG NOVA_BASE_VERSION NOVA_MANIFEST; do
   if [[ -z "${!name:-}" ]]; then
     echo "Missing required metadata: $name" >&2
     exit 2
@@ -18,7 +18,7 @@ for name in NOVA_TAG NOVA_BASE_VERSION NOVA_BASE_COMMIT NOVA_MANIFEST; do
 done
 
 mkdir -p "$LOCK_DIR"
-MANIFEST_URL="https://github.com/nova-video-player/aos-AVP/releases/download/${NOVA_TAG}/manifest.xml"
+MANIFEST_URL="https://github.com/nova-video-player/aos-AVP/releases/download/${NOVA_TAG}/${NOVA_MANIFEST}"
 LOCK_XML="$LOCK_DIR/UPSTREAM_LOCK.xml"
 
 printf 'Downloading resolved NOVA release manifest: %s\n' "$MANIFEST_URL"
@@ -27,8 +27,7 @@ curl -fL --retry 3 --retry-all-errors "$MANIFEST_URL" -o "$LOCK_XML"
 python3 "$PROJECT_ROOT/scripts/fetch_nova_release.py" \
   "$LOCK_XML" \
   "$DEST" \
-  --jobs "$JOBS" \
-  --expected-avp-prefix "$NOVA_BASE_COMMIT"
+  --jobs "$JOBS"
 
 for path in AVP Video MediaLib FileCoreLibrary; do
   if [[ ! -d "$DEST/$path/.git" && ! -f "$DEST/$path/.git" ]]; then
@@ -38,19 +37,12 @@ for path in AVP Video MediaLib FileCoreLibrary; do
 done
 
 AVP_SHA="$(git -C "$DEST/AVP" rev-parse HEAD)"
-case "$AVP_SHA" in
-  "$NOVA_BASE_COMMIT"*) ;;
-  *)
-    echo "Expected aos-AVP release commit prefix $NOVA_BASE_COMMIT for $NOVA_TAG, got $AVP_SHA" >&2
-    exit 4
-    ;;
-esac
 
 # Verify the resolved Video source is actually the requested release before patching.
 if ! grep -Eq "versionName[[:space:]]*=[[:space:]]*['\"]${NOVA_BASE_VERSION}['\"]" "$DEST/Video/build.gradle"; then
   echo "Resolved Video source does not declare NOVA versionName ${NOVA_BASE_VERSION}" >&2
   grep -n "versionName" "$DEST/Video/build.gradle" | head -20 >&2 || true
-  exit 5
+  exit 4
 fi
 
 python3 "$PROJECT_ROOT/scripts/summarize_upstream_lock.py" \
