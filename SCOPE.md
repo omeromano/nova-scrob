@@ -1,20 +1,9 @@
-# v0.1.5 scope
+# v0.1.6 scope
 
-Identity/branding pass on top of the v0.1.3 stability fix.
-
-In scope:
-- effective package ID: `org.courville.novascrob`
-- visible app name: `NOVA Scrob`
-- Scrob-themed launcher icon
-- final-APK package/label/icon assertions
-- preserve v0.1.3 login and playback behavior unchanged
-
-Out of scope:
-- library sync
-- ratings sync
-- Jellyfin/Nuvio integration
-- playback metadata redesign
-- changes to Scrob authentication behavior
-
-
-Build fix: branding is applied to NOVA flavor manifests (including noamazon) as well as the base manifest to avoid Android manifest-merger icon conflicts.
+- Replace the v0.1.5 password-login experiment with Scrob's Kodi-compatible API-key integration.
+- Persist only Scrob URL and API key.
+- Keep the existing NOVA playback hook and 60-second progress cadence.
+- Send the same webhook path/auth style as `ellite/scrob-kodi`.
+- Use proper adaptive launcher resources to avoid white launcher padding.
+- Keep package ID and signing identity unchanged.
+- No library synchronization, ratings synchronization, or other new features.

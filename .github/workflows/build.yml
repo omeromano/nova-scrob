@@ -11,7 +11,7 @@ permissions:
 
 env:
   NOVA_TAG: v6.4.64
-  APP_VERSION: 0.1.5
+  APP_VERSION: 0.1.6
   APP_ID: org.courville.novascrob
 
 jobs:
@@ -51,7 +51,8 @@ jobs:
           grep -n "class ScrobLoginPreference" nova-src/Video/src/main/java/com/archos/mediacenter/video/scrob/ScrobLoginPreference.java
           grep -F "applicationId = \"${APP_ID}\"" nova-src/Video/build.gradle
           grep -n "NOVA Scrob" nova-src/Video/AndroidManifest.xml
-          test -f nova-src/Video/res/drawable-nodpi/nova_scrob_icon.png
+          test -f nova-src/Video/res/mipmap-nodpi/nova_scrob_icon.png
+          test -f nova-src/Video/res/mipmap-anydpi-v26/nova_scrob_icon.xml
 
       - name: Build unsigned release APK
         shell: bash
