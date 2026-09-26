@@ -64,10 +64,11 @@ public final class Scrob {
     public static void disconnect(Context c){prefs(c).edit().remove(KEY_ACCESS_TOKEN).commit();}
 
     public static final class HttpResult {
-        public final int code; public final JSONObject body; public final String raw;
-        HttpResult(int c,JSONObject b,String r){code=c;body=b;raw=r;}
+        public final int code; public final JSONObject body; public final String raw; public final String contentType; public final String endpoint;
+        HttpResult(int c,JSONObject b,String r,String ct,String ep){code=c;body=b;raw=r;contentType=ct==null?"":ct;endpoint=ep;}
         public boolean ok(){return code>=200&&code<300;}
-        public String detail(){String d=body.optString("detail","");if(d.isEmpty())d=body.optString("error","");return d.isEmpty()?raw:d;}
+        public boolean isHtml(){String x=raw==null?"":raw.trim().toLowerCase();return contentType.toLowerCase().contains("text/html")||x.startsWith("<!doctype html")||x.startsWith("<html");}
+        public String detail(){String d=body.optString("detail","");if(d.isEmpty())d=body.optString("error","");if(!d.isEmpty())return d;if(isHtml())return "Scrob returned a web page instead of API JSON ("+endpoint+")";String r=raw==null?"":raw.trim();if(r.length()>240)r=r.substring(0,240)+"…";return r.isEmpty()?("HTTP "+code+" from "+endpoint):r;}
     }
     public static final class LoginResult {
         public final HttpResult http; public final boolean requires2fa; public final String tempToken;
@@ -77,23 +78,42 @@ public final class Scrob {
     private static boolean hasToken(JSONObject j){return j!=null&&!j.optString("access_token","").isEmpty();}
     private static String slurp(InputStream in)throws Exception{if(in==null)return"";StringBuilder b=new StringBuilder();try(BufferedReader r=new BufferedReader(new InputStreamReader(in,StandardCharsets.UTF_8))){String l;while((l=r.readLine())!=null)b.append(l);}return b.toString();}
     private static HttpResult request(String url,String contentType,byte[] body,String bearer)throws Exception{
-        HttpURLConnection h=(HttpURLConnection)new URL(url).openConnection();h.setRequestMethod("POST");h.setConnectTimeout(15000);h.setReadTimeout(15000);h.setDoOutput(true);h.setRequestProperty("Accept","application/json");h.setRequestProperty("Content-Type",contentType);if(bearer!=null&&!bearer.isEmpty())h.setRequestProperty("Authorization","Bearer "+bearer);h.setFixedLengthStreamingMode(body.length);try(OutputStream o=h.getOutputStream()){o.write(body);}int code=h.getResponseCode();String raw=slurp(code>=200&&code<400?h.getInputStream():h.getErrorStream());h.disconnect();JSONObject j;try{j=raw.isEmpty()?new JSONObject():new JSONObject(raw);}catch(Exception e){j=new JSONObject();}return new HttpResult(code,j,raw);
+        String endpoint=url;
+        for(int redirects=0;redirects<4;redirects++){
+            HttpURLConnection h=(HttpURLConnection)new URL(endpoint).openConnection();
+            h.setInstanceFollowRedirects(false);h.setRequestMethod("POST");h.setConnectTimeout(15000);h.setReadTimeout(15000);h.setDoOutput(true);
+            h.setRequestProperty("Accept","application/json");h.setRequestProperty("Content-Type",contentType);
+            if(bearer!=null&&!bearer.isEmpty())h.setRequestProperty("Authorization","Bearer "+bearer);
+            h.setFixedLengthStreamingMode(body.length);try(OutputStream o=h.getOutputStream()){o.write(body);}
+            int code=h.getResponseCode();
+            if(code==301||code==302||code==303||code==307||code==308){String loc=h.getHeaderField("Location");h.disconnect();if(loc==null||loc.isEmpty())return new HttpResult(code,new JSONObject(),"","",endpoint);endpoint=new URL(new URL(endpoint),loc).toString();continue;}
+            String ct=h.getContentType();String raw=slurp(code>=200&&code<400?h.getInputStream():h.getErrorStream());h.disconnect();
+            JSONObject j;try{j=raw.isEmpty()?new JSONObject():new JSONObject(raw);}catch(Exception e){j=new JSONObject();}
+            return new HttpResult(code,j,raw,ct,endpoint);
+        }
+        return new HttpResult(508,new JSONObject(),"Too many redirects","",endpoint);
     }
     private static HttpResult postJson(String url,JSONObject body,String bearer)throws Exception{return request(url,"application/json; charset=utf-8",body.toString().getBytes(StandardCharsets.UTF_8),bearer);}
     private static HttpResult postForm(String url,String form)throws Exception{return request(url,"application/x-www-form-urlencoded; charset=utf-8",form.getBytes(StandardCharsets.UTF_8),null);}
     private static String enc(String s)throws Exception{return URLEncoder.encode(s==null?"":s,"UTF-8");}
 
+    private static HttpResult loginRequest(String base,String form)throws Exception{
+        HttpResult r=postForm(base+"/api/proxy/auth/login",form);
+        if(r.isHtml()||r.code==404||r.code==405)r=postForm(base+"/auth/login",form);
+        return r;
+    }
     public static LoginResult login(Context c,String url,String user,String password)throws Exception{
         String base=normalizeUrl(url);String form="username="+enc(user)+"&password="+enc(password);
-        HttpResult r=postForm(base+"/api/proxy/auth/login",form);
+        HttpResult r=loginRequest(base,form);
         boolean two=r.ok()&&r.body.optBoolean("requires_2fa",false);
         String temp=r.body.optString("temp_token","");
         if(r.ok()&&!two&&hasToken(r.body))saveLogin(c,base,user,r.body.optString("access_token",""));
         return new LoginResult(r,two,temp);
     }
     public static HttpResult verify2fa(Context c,String url,String user,String tempToken,String code)throws Exception{
-        JSONObject b=new JSONObject();b.put("temp_token",tempToken);b.put("code",code);
-        String base=normalizeUrl(url);HttpResult r=postJson(base+"/api/proxy/auth/2fa/verify-login",b,null);
+        JSONObject b=new JSONObject();b.put("temp_token",tempToken);b.put("code",code);String base=normalizeUrl(url);
+        HttpResult r=postJson(base+"/api/proxy/auth/2fa/verify-login",b,null);
+        if(r.isHtml()||r.code==404||r.code==405)r=postJson(base+"/auth/2fa/verify-login",b,null);
         if(r.ok()&&hasToken(r.body))saveLogin(c,base,user,r.body.optString("access_token",""));
         return r;
     }
@@ -253,4 +273,4 @@ if active_ids != [APP_ID]: raise RuntimeError(f'Unexpected active applicationId(
 final_manifest=read(manifest)
 if 'NOVA Scrob' not in final_manifest or '@drawable/nova_scrob_icon' not in final_manifest:
     raise RuntimeError('Branding did not apply to AndroidManifest.xml')
-print('NOVA Scrob v0.1.4 patch applied. appId='+APP_ID)
+print('NOVA Scrob v0.1.5 patch applied. appId='+APP_ID)

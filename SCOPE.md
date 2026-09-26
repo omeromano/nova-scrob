@@ -1,4 +1,4 @@
-# v0.1.4 scope
+# v0.1.5 scope
 
 Identity/branding pass on top of the v0.1.3 stability fix.
 
