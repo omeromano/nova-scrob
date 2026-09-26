@@ -53,7 +53,7 @@ jobs:
         run: |
           set -euxo pipefail
           LOCK_DIR="$GITHUB_WORKSPACE/dist" \
-            scripts/fetch_nova_source.sh "$GITHUB_WORKSPACE/nova-src"
+            bash scripts/fetch_nova_source.sh "$GITHUB_WORKSPACE/nova-src"
 
           MANIFEST_SHA="$(git -C nova-src/.repo/manifests rev-parse HEAD)"
           AVP_SHA="$(git -C nova-src/AVP rev-parse HEAD)"

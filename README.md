@@ -1,4 +1,4 @@
-# NOVA Scrob v0.2.0-dev.2
+# NOVA Scrob v0.2.0-dev.3
 
 Minimal NOVA Video Player fork for direct playback tracking to a self-hosted Scrob instance.
 
@@ -6,7 +6,9 @@ Minimal NOVA Video Player fork for direct playback tracking to a self-hosted Scr
 
 The 0.2.x line is focused on maintainability: keep the working v0.1.7 playback behavior while making the Scrob patch easier to inspect, test, and carry forward when NOVA releases a new version.
 
-v0.2.0-dev.2 moves the build base to NOVA v6.4.72 and fixes how upstream source is assembled. `aos-AVP` is a manifest/entry-point repository, so dev.2 follows NOVA's documented `repo init` / `repo sync` model instead of assuming the root Git submodule pointers represent the release's effective component sources.
+v0.2.0-dev.3 carries forward the dev.2 NOVA v6.4.72 source-resolution work and fixes the CI invocation of the new source-fetch helper. The dev.2 GitHub run stopped before source acquisition because the helper's executable bit was not preserved in the committed checkout. dev.3 invokes it explicitly through `bash`, so CI no longer depends on filesystem mode preservation.
+
+The underlying source strategy remains the same: `aos-AVP` is a manifest/entry-point repository, so 0.2.x follows NOVA's documented `repo init` / `repo sync` model instead of assuming the root Git submodule pointers represent the release's effective component sources. `aos-AVP` is a manifest/entry-point repository, so dev.2 follows NOVA's documented `repo init` / `repo sync` model instead of assuming the root Git submodule pointers represent the release's effective component sources.
 
 ## Upstream source and locking
 
@@ -19,7 +21,7 @@ v0.2.0-dev.2 moves the build base to NOVA v6.4.72 and fixes how upstream source 
 Fetch the release source with:
 
 ```bash
-scripts/fetch_nova_source.sh
+bash scripts/fetch_nova_source.sh
 ```
 
 That script:

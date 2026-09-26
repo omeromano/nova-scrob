@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.2.0-dev.3
+
+### CI source-fetch execution fix
+
+- Fixed the dev.2 GitHub Actions failure that stopped before NOVA source acquisition with `scripts/fetch_nova_source.sh: Permission denied`.
+- Invoke the source-fetch helper explicitly with `bash`, so the build does not depend on ZIP/extraction/Git executable-bit preservation.
+- Keep the dev.2 NOVA v6.4.72 manifest resolution, upstream lock generation, patch preflight, APK version guard, signing, and Scrob behavior unchanged.
+- dev.2 did not reach `repo init`, patching, or Gradle, so dev.3 is the first run that actually exercises the new v6.4.72 source path.
+
 ## v0.2.0-dev.2
 
 ### Correct upstream source resolution and locking
