@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+<string name="category_scrob">Scrob</string>
+<string name="scrob_enabled_title">Use Scrob for playback tracking</string>
+<string name="scrob_enabled_summary">Send local playback progress to Scrob instead of Trakt</string>
+<string name="scrob_login_title">Scrob connection</string>
+<string name="scrob_login_summary">Connect using your Scrob URL and API key</string>
+<string name="scrob_diagnostics_title">NOVA Scrob diagnostics</string>
+<string name="scrob_diagnostics_summary">v{{APP_VERSION}} · Base NOVA v{{NOVA_BASE_VERSION}} · last webhook status</string>
+</resources>
