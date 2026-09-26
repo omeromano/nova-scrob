@@ -12,7 +12,7 @@ public class ScrobDiagnosticsPreference extends Preference {
     @Override protected void onClick(){
         super.onClick();
         new AlertDialog.Builder(ctx).setTitle("NOVA Scrob diagnostics")
-            .setMessage("NOVA Scrob: v{{APP_VERSION}}\nBase NOVA: v{{NOVA_BASE_VERSION}}\n\n"+Scrob.diagnostic(ctx))
+            .setMessage("NOVA Scrob: v{{APP_VERSION}}\nBase NOVA: v{{NOVA_BASE_VERSION}} (AVP {{NOVA_BASE_COMMIT}})\n\n"+Scrob.diagnostic(ctx))
             .setPositiveButton("OK",null).show();
     }
 }

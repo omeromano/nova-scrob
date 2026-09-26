@@ -33,7 +33,7 @@ def verify(ctx):
     )
     expected_header = (
         f'NOVA Scrob: v{ctx.values["APP_VERSION"]}\\n'
-        f'Base NOVA: v{ctx.values["NOVA_BASE_VERSION"]}\\n\\n'
+        f'Base NOVA: v{ctx.values["NOVA_BASE_VERSION"]} (AVP {ctx.values["NOVA_BASE_COMMIT"]})\\n\\n'
     )
     if expected_header not in diagnostics:
         raise RuntimeError("Diagnostics version header did not render from nova-scrob.properties")

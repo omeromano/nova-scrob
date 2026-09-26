@@ -12,7 +12,7 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 60
 
     steps:
       - name: Checkout NOVA Scrob build repo
@@ -27,19 +27,19 @@ jobs:
           source nova-scrob.properties
           set +a
 
-          for name in APP_VERSION APP_ID NOVA_TAG NOVA_BASE_VERSION NOVA_BASE_COMMIT NOVA_COMPAT_TAG; do
+          for name in APP_VERSION APP_ID NOVA_TAG NOVA_BASE_VERSION NOVA_BASE_COMMIT NOVA_MANIFEST; do
             value="${!name}"
             echo "$name=$value" >> "$GITHUB_ENV"
           done
           echo "app_version=$APP_VERSION" >> "$GITHUB_OUTPUT"
           echo "nova_tag=$NOVA_TAG" >> "$GITHUB_OUTPUT"
-          echo "compat_tag=$NOVA_COMPAT_TAG" >> "$GITHUB_OUTPUT"
 
           {
             echo "### NOVA Scrob build metadata"
             echo "- Fork: v$APP_VERSION"
-            echo "- Pinned NOVA: $NOVA_TAG ($NOVA_BASE_COMMIT)"
-            echo "- Compatibility probe: $NOVA_COMPAT_TAG"
+            echo "- NOVA release: $NOVA_TAG"
+            echo "- AVP commit: $NOVA_BASE_COMMIT"
+            echo "- Manifest: $NOVA_MANIFEST"
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Set up Java 17
@@ -48,42 +48,35 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      - name: Fetch exact NOVA release source
+      - name: Fetch and lock NOVA release source
         shell: bash
         run: |
           set -euxo pipefail
-          git clone --branch "$NOVA_TAG" --single-branch https://github.com/nova-video-player/aos-AVP.git nova-src
-          cd nova-src
-          git submodule sync --recursive
-          git submodule update --init --recursive --jobs 4
-          ACTUAL_COMMIT="$(git rev-parse --short HEAD)"
-          echo "Pinned upstream commit: $ACTUAL_COMMIT"
-          case "$ACTUAL_COMMIT" in
-            "$NOVA_BASE_COMMIT"*) ;;
-            *) echo "Expected upstream commit prefix $NOVA_BASE_COMMIT, got $ACTUAL_COMMIT"; exit 1 ;;
-          esac
-          git submodule status --recursive
+          LOCK_DIR="$GITHUB_WORKSPACE/dist" \
+            scripts/fetch_nova_source.sh "$GITHUB_WORKSPACE/nova-src"
 
-      - name: Preflight pinned NOVA source
+          MANIFEST_SHA="$(git -C nova-src/.repo/manifests rev-parse HEAD)"
+          AVP_SHA="$(git -C nova-src/AVP rev-parse HEAD)"
+          VIDEO_SHA="$(git -C nova-src/Video rev-parse HEAD)"
+          MEDIALIB_SHA="$(git -C nova-src/MediaLib rev-parse HEAD)"
+          FILECORE_SHA="$(git -C nova-src/FileCoreLibrary rev-parse HEAD)"
+
+          {
+            echo
+            echo "### Resolved upstream source"
+            echo "- aos-AVP release tag: \`${MANIFEST_SHA}\`"
+            echo "- AVP project: \`${AVP_SHA}\`"
+            echo "- Video: \`${VIDEO_SHA}\`"
+            echo "- MediaLib: \`${MEDIALIB_SHA}\`"
+            echo "- FileCoreLibrary: \`${FILECORE_SHA}\`"
+            echo "- Full immutable manifest: \`UPSTREAM_LOCK.xml\` build artifact"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Preflight NOVA v6.4.72 source
         shell: bash
         run: |
           set -euxo pipefail
           python3 scripts/apply_nova_scrob.py --check nova-src
-
-      - name: Probe newer NOVA compatibility
-        shell: bash
-        run: |
-          set -u
-          rm -rf nova-compat-src
-          if ! git clone --depth 1 --branch "$NOVA_COMPAT_TAG" --single-branch https://github.com/nova-video-player/aos-AVP.git nova-compat-src; then
-            echo "⚠️ Could not fetch $NOVA_COMPAT_TAG for compatibility probing." >> "$GITHUB_STEP_SUMMARY"
-            exit 0
-          fi
-          if python3 scripts/apply_nova_scrob.py --check nova-compat-src; then
-            echo "✅ Patch preflight also passes against $NOVA_COMPAT_TAG." >> "$GITHUB_STEP_SUMMARY"
-          else
-            echo "⚠️ Patch preflight does not yet pass against $NOVA_COMPAT_TAG. Pinned $NOVA_TAG build will continue." >> "$GITHUB_STEP_SUMMARY"
-          fi
 
       - name: Apply NOVA Scrob patch
         shell: bash
@@ -104,6 +97,7 @@ jobs:
           grep -F "applicationId = \"${APP_ID}\"" nova-src/Video/build.gradle
           grep -n "NOVA Scrob" nova-src/Video/AndroidManifest.xml
           grep -F "NOVA Scrob: v${APP_VERSION}" nova-src/Video/src/main/java/com/archos/mediacenter/video/scrob/ScrobDiagnosticsPreference.java
+          grep -F "Base NOVA: v${NOVA_BASE_VERSION}" nova-src/Video/src/main/java/com/archos/mediacenter/video/scrob/ScrobDiagnosticsPreference.java
           test -f nova-src/Video/res/mipmap-nodpi/nova_scrob_icon.png
           test -f nova-src/Video/res/mipmap-anydpi-v26/nova_scrob_icon.xml
 
@@ -115,7 +109,7 @@ jobs:
           chmod +x ./gradlew
           ./gradlew --no-daemon -Puniversal assembleNoamazonRelease
 
-      - name: Sign APK with persistent NOVA Scrob key
+      - name: Sign and verify APK
         shell: bash
         run: |
           set -euxo pipefail
@@ -152,13 +146,14 @@ jobs:
           fi
           "$AAPT" dump badging "dist/nova-scrob-v${APP_VERSION}.apk" | tee dist/APK_BADGING.txt
           grep -F "package: name='${APP_ID}'" dist/APK_BADGING.txt
+          grep -F "versionName='${NOVA_BASE_VERSION}'" dist/APK_BADGING.txt
           grep -F "application-label:'NOVA Scrob'" dist/APK_BADGING.txt
           grep -F "application: label='NOVA Scrob' icon='" dist/APK_BADGING.txt
 
           rm -f dist/nova-scrob.jks
           sha256sum "dist/nova-scrob-v${APP_VERSION}.apk" > dist/SHA256SUMS.txt
 
-      - name: Upload installable APK
+      - name: Upload installable APK and upstream lock
         uses: actions/upload-artifact@v4
         with:
           name: nova-scrob-v${{ steps.meta.outputs.app_version }}-apk
@@ -166,6 +161,9 @@ jobs:
             dist/nova-scrob-v${{ steps.meta.outputs.app_version }}.apk
             dist/SHA256SUMS.txt
             dist/APK_BADGING.txt
+            dist/UPSTREAM_LOCK.xml
+            dist/UPSTREAM_LOCK.txt
+            dist/UPSTREAM_LOCK.sha256
           if-no-files-found: error
 
       - name: Publish GitHub Release
@@ -176,6 +174,9 @@ jobs:
             dist/nova-scrob-v${{ steps.meta.outputs.app_version }}.apk
             dist/SHA256SUMS.txt
             dist/APK_BADGING.txt
+            dist/UPSTREAM_LOCK.xml
+            dist/UPSTREAM_LOCK.txt
+            dist/UPSTREAM_LOCK.sha256
           generate_release_notes: true
 
       - name: Upload diagnostics on failure
@@ -184,6 +185,9 @@ jobs:
         with:
           name: nova-scrob-v${{ steps.meta.outputs.app_version }}-diagnostics
           path: |
+            dist/UPSTREAM_LOCK.xml
+            dist/UPSTREAM_LOCK.txt
+            dist/UPSTREAM_LOCK.sha256
             nova-src/Video/build/reports/**
             nova-src/Video/build/outputs/logs/**
             nova-src/Video/build.gradle
