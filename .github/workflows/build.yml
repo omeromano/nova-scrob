@@ -49,10 +49,12 @@ jobs:
           grep -R "scrob_login\|scrob_enabled" -n nova-src/Video/res/xml/preferences_video.xml
           test -f nova-src/Video/src/main/java/com/archos/mediacenter/video/scrob/ScrobLoginPreference.java
           grep -n "class ScrobLoginPreference" nova-src/Video/src/main/java/com/archos/mediacenter/video/scrob/ScrobLoginPreference.java
-          grep -n "Scrob.postPlayback" nova-src/MediaLib/src/com/archos/mediacenter/utils/trakt/Trakt.java
+          grep -n 'scrobPlayback("Player.OnPlay"' nova-src/Video/src/main/java/com/archos/mediacenter/video/player/PlayerActivity.java
+          grep -n "mScrobProgress" nova-src/Video/src/main/java/com/archos/mediacenter/video/player/PlayerActivity.java
+          grep -n "MENU_BACK_ID" nova-src/Video/src/main/java/com/archos/mediacenter/video/player/PlayerActivity.java
           test -f nova-src/Video/src/main/java/com/archos/mediacenter/video/scrob/ScrobDiagnosticsPreference.java
-          test -f nova-src/Video/src/main/java/com/archos/mediacenter/video/scrob/ScrobInitProvider.java
-          grep -n "scrob_back_button\|scrob_diagnostics" nova-src/Video/res/xml/preferences_video.xml
+          test -f nova-src/Video/res/drawable/ic_nova_scrob_back.xml
+          grep -n "scrob_diagnostics" nova-src/Video/res/xml/preferences_video.xml
           grep -F "applicationId = \"${APP_ID}\"" nova-src/Video/build.gradle
           grep -n "NOVA Scrob" nova-src/Video/AndroidManifest.xml
           test -f nova-src/Video/res/mipmap-nodpi/nova_scrob_icon.png

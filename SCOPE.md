@@ -1,10 +1,9 @@
-# v0.1.7 scope
+# NOVA Scrob v0.1.7 playback/player fix
 
-- Fix playback webhook capture by routing NOVA's existing Trakt playback lifecycle callbacks to Scrob when Scrob is enabled.
-- Preserve NOVA's existing scheduler; report progress at the patched 60-second cadence.
-- Map initial play/resume to `Player.OnPlay`, periodic samples to `Player.OnAVChange`, pause to `Player.OnPause`, and stop to `Player.OnStop`, matching `scrob-kodi`.
-- Add a touch-accessible in-app Back control for Carlinkit-style displays without a physical Back key; keep normal Android Back behavior intact.
-- Add lightweight Scrob diagnostics without displaying or logging the API key.
-- Display NOVA Scrob v0.1.7 and base NOVA v6.4.64 in diagnostics/preferences.
-- Add `UPSTREAM.md` provenance.
-- Keep package ID, signing identity, Scrob API-key configuration, and branding unchanged.
+- Wire Scrob directly to NOVA `PlayerActivity.PlayerListener` callbacks, independent of Trakt authentication.
+- `Player.OnPlay` on real play/resume, `Player.OnPause` on real pause, `Player.OnStop` on completion/intentional exit.
+- Emit `Player.OnAVChange` every 60 seconds while playing using live player position/duration.
+- Diagnostics expose the last internal stage before/through HTTP transport.
+- Add a Back arrow to the player ActionBar beside NOVA's Info/audio/subtitle/brightness actions.
+- Remove the previous global/floating Back control.
+- Preserve package ID `org.courville.novascrob`, branding, signing, and NOVA v6.4.64 base.
