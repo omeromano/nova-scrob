@@ -365,9 +365,9 @@ matches=list(app_id_re.finditer(b))
 if len(matches)!=1:
     raise RuntimeError(f'Expected exactly one active stock NOVA applicationId, found {len(matches)}')
 b=app_id_re.sub(lambda m: f'{m.group(1)}applicationId = \"{APP_ID}\"', b, count=1)
-b,vc_n=re.subn(r'(?m)^(\s*)versionCode\s*=\s*6040064\s*$', r'\g<1>versionCode = 6040065', b, count=1)
-b,vn_n=re.subn(r"(?m)^(\s*)versionName\s*=\s*['\"]6\.4\.64['\"]\s*$", r"\g<1>versionName = '0.1.7'", b, count=1)
-if vc_n!=1 or vn_n!=1: raise RuntimeError(f'Could not set NOVA Scrob package version: versionCode={vc_n}, versionName={vn_n}')
+# Keep NOVA's upstream Android versionCode/versionName mechanism intact.
+# NOVA Scrob's fork release is tracked separately via APP_VERSION/provenance.
+# This avoids assuming literal version fields in Video/build.gradle.
 write(build,b)
 
 # Update explicit package references if any exist in the manifest/provider-path files.
