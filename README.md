@@ -1,4 +1,4 @@
-# NOVA Scrob v0.2.0-dev.5
+# NOVA Scrob v0.2.0-dev.6
 
 Minimal NOVA Video Player fork for direct playback tracking to a self-hosted Scrob instance.
 
@@ -6,7 +6,7 @@ Minimal NOVA Video Player fork for direct playback tracking to a self-hosted Scr
 
 The 0.2.x line is focused on maintainability: keep the working v0.1.7 playback behavior while making the Scrob patch easier to inspect, test, and carry forward when NOVA releases a new version.
 
-v0.2.0-dev.5 keeps dev.4's resolved release-manifest source strategy but removes an invalid assumption that the `AVP` project SHA inside the release manifest must equal the GitHub release/tag commit shown on the aos-AVP release page. The release manifest is already the immutable multi-repository lock; its project revisions are authoritative for source assembly.
+v0.2.0-dev.6 keeps the corrected resolved release-manifest source strategy from dev.5 and adapts the Scrob player hook to NOVA 6.4.72's service-owned playback-position model. The release manifest remains the immutable multi-repository lock; its project revisions are authoritative for source assembly.
 
 ## Upstream source and locking
 
@@ -57,3 +57,8 @@ Apply the patch with:
 ```bash
 python3 scripts/apply_nova_scrob.py nova-src
 ```
+
+
+### v0.2.0-dev.6 compatibility note
+
+NOVA 6.4.72 moved runtime playback-position ownership into `PlayerService`. Scrob therefore reads position/duration from `PlayerService.PlaybackSnapshot`, with the live `Player` only as a fallback when the service is unavailable.

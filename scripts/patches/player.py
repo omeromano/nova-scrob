@@ -4,12 +4,6 @@ PLAYER = "Video/src/main/java/com/archos/mediacenter/video/player/PlayerActivity
 def apply(ctx):
     ctx.replace_once(
         PLAYER,
-        "import android.os.Handler;",
-        "import android.os.Handler;\nimport android.os.Looper;",
-        label="PlayerActivity Handler import",
-    )
-    ctx.replace_once(
-        PLAYER,
         "import com.archos.mediacenter.utils.videodb.VideoDbInfo;",
         "import com.archos.mediacenter.utils.videodb.VideoDbInfo;\nimport com.archos.mediacenter.utils.scrob.Scrob;",
         label="PlayerActivity VideoDbInfo import",
@@ -45,10 +39,16 @@ def apply(ctx):
             return;
         }
         int duration = 0;
-        int position = Math.max(0, mLastPosition);
-        if (mPlayer != null) {
+        int position = 0;
+        PlayerService.PlaybackSnapshot snapshot = PlayerService.sPlayerService != null
+                ? PlayerService.sPlayerService.getPlaybackSnapshot()
+                : null;
+        if (snapshot != null) {
+            position = Math.max(0, snapshot.getPositionMs());
+            duration = snapshot.getDurationMs();
+        } else if (mPlayer != null && mPlayer.isInPlaybackState()) {
+            position = Math.max(0, mPlayer.getCurrentPosition());
             duration = mPlayer.getDuration();
-            if (mPlayer.isInPlaybackState()) position = mPlayer.getCurrentPosition();
         }
         if (duration <= 0 && mVideoInfo.duration > 0) duration = (int)Math.min(Integer.MAX_VALUE, mVideoInfo.duration);
         if (duration > 0) mVideoInfo.duration = duration;

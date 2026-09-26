@@ -1,5 +1,17 @@
 # Changelog
 
+## v0.2.0-dev.6
+
+### NOVA 6.4.72 player-position adaptation
+
+- Fixed the first genuine v6.4.72 compile incompatibility reached by dev.5: `PlayerActivity.mLastPosition` no longer exists.
+- Follow NOVA 6.4.72's service-owned playback model by obtaining Scrob position/duration from `PlayerService.getPlaybackSnapshot()`.
+- Retain `mPlayer.getCurrentPosition()` only as a fallback when `PlayerService` is unavailable.
+- Keep `mVideoInfo.duration` as the final duration fallback, preserving the existing Scrob progress calculation and event semantics.
+- Removed the redundant injected `android.os.Looper` import because v6.4.72 already imports it.
+- Added patch verification that requires the new snapshot API and rejects any residual `mLastPosition` reference.
+- No intentional change to Scrob authentication, 60-second cadence, stop suppression, Back behavior, package identity, signing, or branding.
+
 ## v0.2.0-dev.5
 
 ### Release-manifest provenance guard fix

@@ -9,7 +9,7 @@ LAST_UPSTREAM_REVIEW=2026-09-26
 
 ## Source assembly
 
-v0.2.0-dev.5 uses NOVA's resolved `manifest.xml` release asset as the source of truth for the complete upstream tree.
+v0.2.0-dev.6 uses NOVA's resolved `manifest.xml` release asset as the source of truth for the complete upstream tree.
 
 CI downloads:
 

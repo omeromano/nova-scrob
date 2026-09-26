@@ -23,10 +23,14 @@ def verify(ctx):
         'scrobPlayback("Player.OnStop", false);',
         "public void finish() {",
         "mScrobHandler.postDelayed(this, 60000);",
+        "PlayerService.sPlayerService.getPlaybackSnapshot()",
+        "snapshot.getPositionMs()",
     )
     for needle in required:
         if needle not in pa:
             raise RuntimeError("Player stop/back/progress integration missing: " + needle)
+    if "mLastPosition" in pa:
+        raise RuntimeError("Obsolete PlayerActivity mLastPosition reference remains after v6.4.72 adaptation")
 
     diagnostics = ctx.result_text(
         "Video/src/main/java/com/archos/mediacenter/video/scrob/ScrobDiagnosticsPreference.java"
