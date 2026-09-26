@@ -323,6 +323,8 @@ def pa_replace(old,new):
     if n!=1: raise RuntimeError(f'PlayerActivity anchor expected once, found {n}: {old[:100]!r}')
     pa=pa.replace(old,new,1)
 
+pa_replace('import android.os.Handler;',
+           'import android.os.Handler;\nimport android.os.Looper;')
 pa_replace('import com.archos.mediacenter.utils.videodb.VideoDbInfo;',
            'import com.archos.mediacenter.utils.videodb.VideoDbInfo;\nimport com.archos.mediacenter.utils.scrob.Scrob;')
 pa_replace('    private static final int MENU_INFO_ID = 101;',
