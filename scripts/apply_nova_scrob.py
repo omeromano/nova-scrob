@@ -297,12 +297,14 @@ public class ScrobDiagnosticsPreference extends Preference {
     @Override protected void onClick(){
         super.onClick();
         new AlertDialog.Builder(ctx).setTitle("NOVA Scrob diagnostics")
-            .setMessage("NOVA Scrob: v0.1.7\\nBase NOVA: v6.4.64\\n\\n"+Scrob.diagnostic(ctx))
+            .setMessage("NOVA Scrob: v0.1.7\nBase NOVA: v6.4.64\n\n"+Scrob.diagnostic(ctx))
             .setPositiveButton("OK",null).show();
     }
 }
 '''
 write('Video/src/main/java/com/archos/mediacenter/video/scrob/ScrobDiagnosticsPreference.java',diagnostics_pref)
+if '\\nBase NOVA:' in diagnostics_pref:
+    raise RuntimeError('Diagnostics header contains literal \\n escapes instead of line breaks')
 
 
 # Add a compact Scrob category. The login preference itself owns the modal.
