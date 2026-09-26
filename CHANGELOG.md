@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.2.0-dev.7
+
+- Extract Scrob playback lifecycle, 60-second progress scheduling, duplicate-stop suppression, and playback-position calculation from NOVA `PlayerActivity` into `ScrobPlaybackBridge`.
+- Reduce the upstream `PlayerActivity` patch to a bridge field plus small lifecycle callback hooks while preserving dev.6 webhook semantics.
+- Keep NOVA 6.4.72 service-owned `PlaybackSnapshot` as the primary position source with the live `Player` fallback.
+- Add preflight/CI guards that reject Scrob timer/transport internals leaking back into `PlayerActivity`.
+
 ## v0.2.0-dev.6
 
 ### NOVA 6.4.72 player-position adaptation

@@ -16,21 +16,45 @@ def verify(ctx):
         raise RuntimeError("Branding did not apply to Video/AndroidManifest.xml")
 
     pa = ctx.result_text("Video/src/main/java/com/archos/mediacenter/video/player/PlayerActivity.java")
-    required = (
-        "private boolean mScrobStopSent = false;",
-        "duplicate stop suppressed",
+    required_player_hooks = (
+        "private final ScrobPlaybackBridge mScrobPlayback = new ScrobPlaybackBridge(this);",
         "case MENU_BACK_ID:",
-        'scrobPlayback("Player.OnStop", false);',
-        "public void finish() {",
-        "mScrobHandler.postDelayed(this, 60000);",
+        "mScrobPlayback.onPlay(mVideoInfo, mPlayer);",
+        "mScrobPlayback.onPause(mVideoInfo, mPlayer);",
+        "mScrobPlayback.onStop(mVideoInfo, mPlayer, true);",
+        "mScrobPlayback.onStop(mVideoInfo, mPlayer, false);",
+        "mScrobPlayback.release();",
+    )
+    for needle in required_player_hooks:
+        if needle not in pa:
+            raise RuntimeError("Player Scrob bridge integration missing: " + needle)
+
+    forbidden_player_internals = (
+        "mScrobHandler",
+        "mScrobProgress",
+        "private void scrobPlayback(",
+        "PlayerService.sPlayerService.getPlaybackSnapshot()",
+        "Scrob.postPlaybackAsync(",
+        "mLastPosition",
+    )
+    for needle in forbidden_player_internals:
+        if needle in pa:
+            raise RuntimeError("Scrob implementation detail leaked into PlayerActivity: " + needle)
+
+    bridge = ctx.result_text(
+        "Video/src/main/java/com/archos/mediacenter/video/scrob/ScrobPlaybackBridge.java"
+    )
+    required_bridge = (
+        "public final class ScrobPlaybackBridge",
+        "private static final long PROGRESS_INTERVAL_MS = 60000L;",
         "PlayerService.sPlayerService.getPlaybackSnapshot()",
         "snapshot.getPositionMs()",
+        "duplicate stop suppressed",
+        "Scrob.postPlaybackAsync(context, videoInfo, progress, method, ended);",
     )
-    for needle in required:
-        if needle not in pa:
-            raise RuntimeError("Player stop/back/progress integration missing: " + needle)
-    if "mLastPosition" in pa:
-        raise RuntimeError("Obsolete PlayerActivity mLastPosition reference remains after v6.4.72 adaptation")
+    for needle in required_bridge:
+        if needle not in bridge:
+            raise RuntimeError("Scrob playback bridge implementation missing: " + needle)
 
     diagnostics = ctx.result_text(
         "Video/src/main/java/com/archos/mediacenter/video/scrob/ScrobDiagnosticsPreference.java"

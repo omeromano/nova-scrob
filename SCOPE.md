@@ -32,7 +32,7 @@ No intended Scrob behavior change.
 - Publish the release manifest, resolved-project summary, and SHA-256 checksum beside the APK.
 - Keep the final APK `versionName=6.4.72` guard.
 
-## v0.2.0-dev.6 — PlayerService-owned playback position
+## v0.2.0-dev.7 — PlayerService-owned playback position
 
 - dev.5 successfully resolved and patched the exact v6.4.72 release source, then reached Java compilation.
 - Adapt Scrob progress capture to NOVA 6.4.72's `PlayerService.PlaybackSnapshot` API after upstream removed `PlayerActivity.mLastPosition`.
@@ -46,3 +46,5 @@ No intended Scrob behavior change.
 4. Close 0.2.x after install/update testing confirms playback events still reach Scrob correctly.
 
 Feature expansion remains deferred until this maintenance layer is stable.
+
+- Keep playback-specific Scrob state and timers outside upstream `PlayerActivity`; use `ScrobPlaybackBridge` as the integration boundary.

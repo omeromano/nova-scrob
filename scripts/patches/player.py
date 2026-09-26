@@ -5,7 +5,7 @@ def apply(ctx):
     ctx.replace_once(
         PLAYER,
         "import com.archos.mediacenter.utils.videodb.VideoDbInfo;",
-        "import com.archos.mediacenter.utils.videodb.VideoDbInfo;\nimport com.archos.mediacenter.utils.scrob.Scrob;",
+        "import com.archos.mediacenter.utils.videodb.VideoDbInfo;\nimport com.archos.mediacenter.video.scrob.ScrobPlaybackBridge;",
         label="PlayerActivity VideoDbInfo import",
     )
     ctx.replace_once(
@@ -17,56 +17,8 @@ def apply(ctx):
     ctx.replace_once(
         PLAYER,
         "    private VideoDbInfo mVideoInfo;",
-        '''    private VideoDbInfo mVideoInfo;
-    private boolean mScrobPlaying = false;
-    private boolean mScrobStopSent = false;
-    private final Handler mScrobHandler = new Handler(Looper.getMainLooper());
-    private final Runnable mScrobProgress = new Runnable() {
-        @Override public void run() {
-            if (!mScrobPlaying) return;
-            scrobPlayback("Player.OnAVChange", false);
-            mScrobHandler.postDelayed(this, 60000);
-        }
-    };
-    private void scrobPlayback(String method, boolean ended) {
-        final boolean stopping = "Player.OnStop".equals(method);
-        if (!Scrob.isEnabled(this) || mVideoInfo == null || (!stopping && (mPlayer == null || !mPlayer.isInPlaybackState()))) {
-            Scrob.recordStage(this, "player callback skipped: " + method, mVideoInfo);
-            return;
-        }
-        if (stopping && mScrobStopSent) {
-            Scrob.recordStage(this, "duplicate stop suppressed", mVideoInfo);
-            return;
-        }
-        int duration = 0;
-        int position = 0;
-        PlayerService.PlaybackSnapshot snapshot = PlayerService.sPlayerService != null
-                ? PlayerService.sPlayerService.getPlaybackSnapshot()
-                : null;
-        if (snapshot != null) {
-            position = Math.max(0, snapshot.getPositionMs());
-            duration = snapshot.getDurationMs();
-        } else if (mPlayer != null && mPlayer.isInPlaybackState()) {
-            position = Math.max(0, mPlayer.getCurrentPosition());
-            duration = mPlayer.getDuration();
-        }
-        if (duration <= 0 && mVideoInfo.duration > 0) duration = (int)Math.min(Integer.MAX_VALUE, mVideoInfo.duration);
-        if (duration > 0) mVideoInfo.duration = duration;
-        float progress = duration > 0 ? Math.max(0f, Math.min(100f, position * 100f / duration)) : 0f;
-        if (stopping) mScrobStopSent = true;
-        Scrob.recordStage(this, "player callback: " + method, mVideoInfo);
-        Scrob.postPlaybackAsync(this, mVideoInfo, progress, method, ended);
-    }
-    private void startScrobProgress() {
-        mScrobPlaying = true;
-        mScrobHandler.removeCallbacks(mScrobProgress);
-        mScrobHandler.postDelayed(mScrobProgress, 60000);
-    }
-    private void stopScrobProgress() {
-        mScrobPlaying = false;
-        mScrobHandler.removeCallbacks(mScrobProgress);
-    }''',
-        label="PlayerActivity Scrob state/helpers",
+        "    private VideoDbInfo mVideoInfo;\n    private final ScrobPlaybackBridge mScrobPlayback = new ScrobPlaybackBridge(this);",
+        label="PlayerActivity Scrob bridge",
     )
     ctx.replace_once(
         PLAYER,
@@ -83,8 +35,7 @@ def apply(ctx):
         "        switch (item.getItemId()) {\n            case MENU_LOCK_ID:",
         '''        switch (item.getItemId()) {
             case MENU_BACK_ID:
-                scrobPlayback("Player.OnStop", false);
-                stopScrobProgress();
+                mScrobPlayback.onStop(mVideoInfo, mPlayer, false);
                 getOnBackPressedDispatcher().onBackPressed();
                 return true;
             case MENU_LOCK_ID:''',
@@ -94,9 +45,7 @@ def apply(ctx):
         PLAYER,
         "        public void onPlay(int state) {\n            if (mSubtitleManager != null)",
         '''        public void onPlay(int state) {
-            mScrobStopSent = false;
-            scrobPlayback("Player.OnPlay", false);
-            startScrobProgress();
+            mScrobPlayback.onPlay(mVideoInfo, mPlayer);
             if (mSubtitleManager != null)''',
         label="PlayerActivity onPlay callback",
     )
@@ -104,8 +53,7 @@ def apply(ctx):
         PLAYER,
         "        public void onPause(int state) {",
         '''        public void onPause(int state) {
-            scrobPlayback("Player.OnPause", false);
-            stopScrobProgress();''',
+            mScrobPlayback.onPause(mVideoInfo, mPlayer);''',
         label="PlayerActivity onPause callback",
     )
     ctx.replace_once(
@@ -113,16 +61,14 @@ def apply(ctx):
         "        public void onCompletion() {\n            if (log.isDebugEnabled()) log.debug(\"onCompletion\");",
         '''        public void onCompletion() {
             if (log.isDebugEnabled()) log.debug("onCompletion");
-            scrobPlayback("Player.OnStop", true);
-            stopScrobProgress();''',
+            mScrobPlayback.onStop(mVideoInfo, mPlayer, true);''',
         label="PlayerActivity onCompletion callback",
     )
     ctx.replace_once(
         PLAYER,
         "    public void finish() {\n        // Send result before finishing if we haven't already",
         '''    public void finish() {
-        scrobPlayback("Player.OnStop", false);
-        stopScrobProgress();
+        mScrobPlayback.onStop(mVideoInfo, mPlayer, false);
         // Send result before finishing if we haven't already''',
         label="PlayerActivity finish callback",
     )
@@ -131,7 +77,8 @@ def apply(ctx):
         "    protected void onDestroy() {\n        if (log.isDebugEnabled()) log.debug(\"onDestroy\");",
         '''    protected void onDestroy() {
         if (log.isDebugEnabled()) log.debug("onDestroy");
-        stopScrobProgress();''',
+        mScrobPlayback.release();''',
         label="PlayerActivity onDestroy cleanup",
     )
+    ctx.install_template("Video/src/main/java/com/archos/mediacenter/video/scrob/ScrobPlaybackBridge.java")
     ctx.install_template("Video/res/drawable/ic_nova_scrob_back.xml")

@@ -85,9 +85,11 @@ jobs:
           grep -R "scrob_login\|scrob_enabled" -n nova-src/Video/res/xml/preferences_video.xml
           test -f nova-src/Video/src/main/java/com/archos/mediacenter/video/scrob/ScrobLoginPreference.java
           grep -n "class ScrobLoginPreference" nova-src/Video/src/main/java/com/archos/mediacenter/video/scrob/ScrobLoginPreference.java
-          grep -n 'scrobPlayback("Player.OnPlay"' nova-src/Video/src/main/java/com/archos/mediacenter/video/player/PlayerActivity.java
-          grep -n "mScrobProgress" nova-src/Video/src/main/java/com/archos/mediacenter/video/player/PlayerActivity.java
-          grep -n "import android.os.Looper;" nova-src/Video/src/main/java/com/archos/mediacenter/video/player/PlayerActivity.java
+          test -f nova-src/Video/src/main/java/com/archos/mediacenter/video/scrob/ScrobPlaybackBridge.java
+          grep -n "mScrobPlayback.onPlay" nova-src/Video/src/main/java/com/archos/mediacenter/video/player/PlayerActivity.java
+          grep -n "PROGRESS_INTERVAL_MS = 60000L" nova-src/Video/src/main/java/com/archos/mediacenter/video/scrob/ScrobPlaybackBridge.java
+          grep -n "getPlaybackSnapshot()" nova-src/Video/src/main/java/com/archos/mediacenter/video/scrob/ScrobPlaybackBridge.java
+          ! grep -q "mScrobHandler\|mScrobProgress\|private void scrobPlayback" nova-src/Video/src/main/java/com/archos/mediacenter/video/player/PlayerActivity.java
           grep -n "MENU_BACK_ID" nova-src/Video/src/main/java/com/archos/mediacenter/video/player/PlayerActivity.java
           test -f nova-src/Video/src/main/java/com/archos/mediacenter/video/scrob/ScrobDiagnosticsPreference.java
           test -f nova-src/Video/res/drawable/ic_nova_scrob_back.xml
