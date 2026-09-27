@@ -79,6 +79,12 @@ def verify(ctx):
     credentials = ctx.result_text(
         "MediaLib/src/com/archos/mediacenter/utils/scrob/ScrobCredentials.java"
     )
+    state = ctx.result_text(
+        "MediaLib/src/com/archos/mediacenter/utils/scrob/ScrobConnectionState.java"
+    )
+    check = ctx.result_text(
+        "MediaLib/src/com/archos/mediacenter/utils/scrob/ScrobConnectionCheck.java"
+    )
     connection = ctx.result_text(
         "MediaLib/src/com/archos/mediacenter/utils/scrob/ScrobConnection.java"
     )
@@ -92,9 +98,20 @@ def verify(ctx):
         (config, 'KEY_ENABLED = "scrob_enabled"', "legacy enabled key"),
         (config, 'KEY_URL = "scrob_url"', "legacy URL key"),
         (credentials, 'KEY_API_KEY = "scrob_api_key"', "legacy API-key key"),
+        (state, 'UNCONFIGURED("Unconfigured")', "unconfigured connection state"),
+        (state, 'CONFIGURED("Configured")', "configured connection state"),
+        (state, 'TESTING("Testing")', "testing connection state"),
+        (state, 'CONNECTED("Connected")', "connected connection state"),
+        (state, 'AUTHENTICATION_FAILED("Authentication failed")', "authentication-failed state"),
+        (state, 'SERVER_UNREACHABLE("Server unreachable")', "server-unreachable state"),
+        (state, 'SERVER_API_INCOMPATIBLE("Server/API incompatible")', "server/API-incompatible state"),
+        (check, "public boolean isConnected()", "connection-check result"),
+        (connection, "public ScrobConnectionState getState()", "explicit connection state"),
         (connection, "public boolean isConfigured()", "connection configured state"),
         (connection, "String proxyUrl(String path)", "connection endpoint builder"),
+        (auth, "recordConnectionCheck", "connection-state persistence boundary"),
         (auth, "saveApiKeyConnection", "auth persistence boundary"),
+        (scrob, "classifyConnectionResult", "transport result classification"),
         (scrob, "ScrobAuthManager.getConnection(context)", "transport auth boundary"),
         (scrob, "redactEndpoint(endpoint)", "credential-safe endpoint diagnostics"),
     ):
@@ -115,6 +132,9 @@ def verify(ctx):
         "ScrobAuthManager.getConnection(ctx)",
         "ScrobAuthManager.getApiKeyForEditing(ctx)",
         "ScrobAuthManager.saveApiKeyConnection(ctx,u,k)",
+        "ScrobAuthManager.recordConnectionCheck(ctx,check)",
+        "ScrobConnectionState.TESTING.getLabel()",
+        "check.getState().getLabel()",
         "ScrobAuthManager.disconnect(ctx)",
     )
     for needle in required_ui_boundary:
@@ -142,6 +162,16 @@ def verify(ctx):
     ):
         if stale_transport_method in scrob:
             raise RuntimeError("Scrob transport still exposes settings compatibility method: " + stale_transport_method)
+
+
+    if "return config.isEnabledSetting() && isConfigured();" not in connection:
+        raise RuntimeError("Connection reachability state unexpectedly gates playback enablement")
+    if "getState() == ScrobConnectionState.CONNECTED" in connection:
+        raise RuntimeError("Connected state must not become a playback enablement gate")
+    if "Connection state: " not in scrob or "Authentication: " not in scrob:
+        raise RuntimeError("Diagnostics do not expose the credential-safe connection-state model")
+    if "apiKeyValue()" in login:
+        raise RuntimeError("Settings UI gained raw credential-object access")
 
     diagnostics = ctx.result_text(
         "Video/src/main/java/com/archos/mediacenter/video/scrob/ScrobDiagnosticsPreference.java"

@@ -93,6 +93,8 @@ jobs:
           test -f nova-src/Video/src/main/java/com/archos/mediacenter/video/scrob/ScrobLoginPreference.java
           test -f nova-src/MediaLib/src/com/archos/mediacenter/utils/scrob/ScrobConfig.java
           test -f nova-src/MediaLib/src/com/archos/mediacenter/utils/scrob/ScrobCredentials.java
+          test -f nova-src/MediaLib/src/com/archos/mediacenter/utils/scrob/ScrobConnectionState.java
+          test -f nova-src/MediaLib/src/com/archos/mediacenter/utils/scrob/ScrobConnectionCheck.java
           test -f nova-src/MediaLib/src/com/archos/mediacenter/utils/scrob/ScrobConnection.java
           test -f nova-src/MediaLib/src/com/archos/mediacenter/utils/scrob/ScrobAuthManager.java
           grep -n 'KEY_URL = "scrob_url"' nova-src/MediaLib/src/com/archos/mediacenter/utils/scrob/ScrobConfig.java
@@ -102,6 +104,13 @@ jobs:
           grep -n "ScrobAuthManager.getConnection(ctx)" nova-src/Video/src/main/java/com/archos/mediacenter/video/scrob/ScrobLoginPreference.java
           grep -n "ScrobAuthManager.getApiKeyForEditing(ctx)" nova-src/Video/src/main/java/com/archos/mediacenter/video/scrob/ScrobLoginPreference.java
           grep -n "ScrobAuthManager.saveApiKeyConnection(ctx,u,k)" nova-src/Video/src/main/java/com/archos/mediacenter/video/scrob/ScrobLoginPreference.java
+          grep -n "ScrobAuthManager.recordConnectionCheck(ctx,check)" nova-src/Video/src/main/java/com/archos/mediacenter/video/scrob/ScrobLoginPreference.java
+          grep -n 'TESTING("Testing")' nova-src/MediaLib/src/com/archos/mediacenter/utils/scrob/ScrobConnectionState.java
+          grep -n 'AUTHENTICATION_FAILED("Authentication failed")' nova-src/MediaLib/src/com/archos/mediacenter/utils/scrob/ScrobConnectionState.java
+          grep -n 'SERVER_UNREACHABLE("Server unreachable")' nova-src/MediaLib/src/com/archos/mediacenter/utils/scrob/ScrobConnectionState.java
+          grep -n 'SERVER_API_INCOMPATIBLE("Server/API incompatible")' nova-src/MediaLib/src/com/archos/mediacenter/utils/scrob/ScrobConnectionState.java
+          grep -n "Connection state:" nova-src/MediaLib/src/com/archos/mediacenter/utils/scrob/Scrob.java
+          grep -n "Authentication:" nova-src/MediaLib/src/com/archos/mediacenter/utils/scrob/Scrob.java
           ! grep -q "Scrob\.baseUrl(\|Scrob\.apiKey(\|Scrob\.hasConnection(\|Scrob\.status(\|Scrob\.saveConnection(\|Scrob\.disconnect(" nova-src/Video/src/main/java/com/archos/mediacenter/video/scrob/ScrobLoginPreference.java
           test -f nova-src/Video/src/main/java/com/archos/mediacenter/video/scrob/ScrobPlaybackBridge.java
           grep -n "mScrobPlayback.onPlay" nova-src/Video/src/main/java/com/archos/mediacenter/video/player/PlayerActivity.java

@@ -13,6 +13,8 @@ import androidx.preference.Preference;
 import com.archos.mediacenter.utils.scrob.Scrob;
 import com.archos.mediacenter.utils.scrob.ScrobAuthManager;
 import com.archos.mediacenter.utils.scrob.ScrobConnection;
+import com.archos.mediacenter.utils.scrob.ScrobConnectionCheck;
+import com.archos.mediacenter.utils.scrob.ScrobConnectionState;
 
 public class ScrobLoginPreference extends Preference {
     private final Context ctx;
@@ -25,7 +27,7 @@ public class ScrobLoginPreference extends Preference {
     private EditText field(String hint,int type){EditText e=new EditText(ctx);e.setHint(hint);e.setInputType(type);e.setSingleLine(true);return e;}
     private void refresh(){
         ScrobConnection connection=ScrobAuthManager.getConnection(ctx);
-        setSummary(connection.isConfigured()?connection.getStatus()+" — "+connection.getBaseUrl():"Enter your Scrob URL and API key");
+        setSummary(connection.isConfigured()?connection.getStatus()+" — "+connection.getBaseUrl():"Unconfigured — enter your Scrob URL and API key");
     }
 
     @Override protected void onClick(){super.onClick();showConnection();}
@@ -43,7 +45,7 @@ public class ScrobLoginPreference extends Preference {
         box.addView(url);box.addView(key);
 
         AlertDialog dlg=new AlertDialog.Builder(ctx)
-            .setTitle("Scrob connection")
+            .setTitle("Scrob connection — "+connection.getStatus())
             .setMessage("Use the API key from Scrob → Connections → API Key.")
             .setView(box)
             .setPositiveButton("Test & save",null)
@@ -59,25 +61,22 @@ public class ScrobLoginPreference extends Preference {
                     return;
                 }
                 View b=dlg.getButton(AlertDialog.BUTTON_POSITIVE);b.setEnabled(false);
+                dlg.setTitle("Scrob connection — "+ScrobConnectionState.TESTING.getLabel());
                 new Thread(()->{
-                    try{
-                        Scrob.HttpResult r=Scrob.testConnection(u,k);
-                        main.post(()->{
-                            b.setEnabled(true);
-                            if(r.ok()&&!r.isHtml()){
-                                ScrobAuthManager.saveApiKeyConnection(ctx,u,k);
-                                Toast.makeText(ctx,"Connected to Scrob",Toast.LENGTH_SHORT).show();
-                                dlg.dismiss();refresh();notifyChanged();
-                            }else{
-                                Toast.makeText(ctx,"Scrob connection failed: "+r.detail(),Toast.LENGTH_LONG).show();
-                            }
-                        });
-                    }catch(Exception e){
-                        main.post(()->{
-                            b.setEnabled(true);
-                            Toast.makeText(ctx,"Could not reach Scrob: "+e.getMessage(),Toast.LENGTH_LONG).show();
-                        });
-                    }
+                    ScrobConnectionCheck check=Scrob.testConnection(u,k);
+                    main.post(()->{
+                        b.setEnabled(true);
+                        if(check.isConnected()){
+                            ScrobAuthManager.saveApiKeyConnection(ctx,u,k);
+                            ScrobAuthManager.recordConnectionCheck(ctx,check);
+                            Toast.makeText(ctx,"Connected to Scrob",Toast.LENGTH_SHORT).show();
+                            dlg.dismiss();refresh();notifyChanged();
+                        }else{
+                            dlg.setTitle("Scrob connection — "+check.getState().getLabel());
+                            String detail=check.getDetail();
+                            Toast.makeText(ctx,check.getState().getLabel()+(detail.isEmpty()?"":": "+detail),Toast.LENGTH_LONG).show();
+                        }
+                    });
                 },"ScrobApiKeyTest").start();
             });
             if(connection.isConfigured()){

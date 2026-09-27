@@ -53,21 +53,28 @@ public final class Scrob {
     public static String diagnostic(Context context) {
         SharedPreferences preferences = prefs(context);
         long at = preferences.getLong(KEY_LAST_WEBHOOK_AT, 0);
-        String when = at == 0
-                ? "Never"
-                : new java.text.SimpleDateFormat(
-                        "yyyy-MM-dd HH:mm:ss",
-                        java.util.Locale.getDefault())
-                        .format(new java.util.Date(at));
+        String when = formatTimestamp(at);
         ScrobConnection connection = ScrobAuthManager.getConnection(context);
         return "Scrob URL: " + connection.getBaseUrl()
-                + "\nConnection: " + connection.getStatus()
+                + "\nConnection state: " + connection.getStatus()
+                + "\nAuthentication: " + connection.getAuthenticationDescription()
+                + "\nLast connection check: " + formatTimestamp(connection.getStateCheckedAt())
+                + "\nConnection detail: " + connection.getStateDetail()
                 + "\nLast webhook: " + when
                 + "\nHTTP status: " + preferences.getInt(KEY_LAST_WEBHOOK_STATUS, 0)
                 + "\nEvent: " + value(preferences, KEY_LAST_EVENT)
                 + "\nTitle: " + value(preferences, KEY_LAST_TITLE)
                 + "\nStage: " + value(preferences, KEY_LAST_STAGE)
                 + "\nLast error: " + value(preferences, KEY_LAST_ERROR);
+    }
+
+    private static String formatTimestamp(long value) {
+        return value == 0
+                ? "Never"
+                : new java.text.SimpleDateFormat(
+                        "yyyy-MM-dd HH:mm:ss",
+                        java.util.Locale.getDefault())
+                        .format(new java.util.Date(value));
     }
 
     public static void recordStage(Context context, String stage, VideoDbInfo videoInfo) {
@@ -167,14 +174,69 @@ public final class Scrob {
         return new HttpResult(code, json, raw, contentType, endpoint);
     }
 
-    public static HttpResult testConnection(String url, String apiKey) throws Exception {
+    private static String httpConnectionDetail(HttpResult result) {
+        String detail = result.detail();
+        String prefix = "HTTP " + result.code;
+        if (detail.isEmpty() || detail.startsWith(prefix)) return detail.isEmpty() ? prefix : detail;
+        return prefix + ": " + detail;
+    }
+
+    private static ScrobConnectionCheck classifyConnectionResult(HttpResult result) {
+        if (result == null) {
+            return ScrobConnectionCheck.now(
+                    ScrobConnectionState.SERVER_UNREACHABLE,
+                    "No response from Scrob",
+                    0);
+        }
+        if (result.code == 401 || result.code == 403) {
+            return ScrobConnectionCheck.now(
+                    ScrobConnectionState.AUTHENTICATION_FAILED,
+                    httpConnectionDetail(result),
+                    result.code);
+        }
+        if (result.isHtml()) {
+            return ScrobConnectionCheck.now(
+                    ScrobConnectionState.SERVER_API_INCOMPATIBLE,
+                    httpConnectionDetail(result),
+                    result.code);
+        }
+        if (result.ok()) {
+            return ScrobConnectionCheck.now(
+                    ScrobConnectionState.CONNECTED,
+                    "HTTP " + result.code,
+                    result.code);
+        }
+        return ScrobConnectionCheck.now(
+                ScrobConnectionState.SERVER_API_INCOMPATIBLE,
+                httpConnectionDetail(result),
+                result.code);
+    }
+
+    private static ScrobConnectionCheck unreachableConnectionCheck(Exception exception) {
+        String detail = exception == null ? "" : redactEndpoint(String.valueOf(exception.getMessage()));
+        if (detail.isEmpty()) detail = "Could not reach Scrob";
+        return ScrobConnectionCheck.now(
+                ScrobConnectionState.SERVER_UNREACHABLE,
+                detail,
+                0);
+    }
+
+    public static ScrobConnectionCheck testConnection(String url, String apiKey) {
         String base = ScrobConfig.normalizeUrl(url);
         String key = apiKey == null ? "" : apiKey.trim();
         if (base.isEmpty() || key.isEmpty()) {
-            throw new IllegalArgumentException("Scrob URL and API key are required");
+            return ScrobConnectionCheck.now(
+                    ScrobConnectionState.UNCONFIGURED,
+                    "Scrob URL and API key are required",
+                    0);
         }
-        ScrobConnection candidate = ScrobAuthManager.apiKeyCandidate(base, key);
-        return request("GET", candidate.proxyUrl("webhooks/kodi/history"), null);
+        try {
+            ScrobConnection candidate = ScrobAuthManager.apiKeyCandidate(base, key);
+            return classifyConnectionResult(
+                    request("GET", candidate.proxyUrl("webhooks/kodi/history"), null));
+        } catch (Exception exception) {
+            return unreachableConnectionCheck(exception);
+        }
     }
 
     private static JSONObject hms(long seconds) throws Exception {
@@ -273,6 +335,7 @@ public final class Scrob {
                     "POST",
                     scrobConnection.proxyUrl("webhooks/kodi"),
                     body.toString().getBytes(StandardCharsets.UTF_8));
+            ScrobAuthManager.recordConnectionCheck(context, classifyConnectionResult(result));
             preferences.edit()
                     .putLong(KEY_LAST_WEBHOOK_AT, System.currentTimeMillis())
                     .putInt(KEY_LAST_WEBHOOK_STATUS, result.code)
@@ -284,6 +347,11 @@ public final class Scrob {
             return result.ok() ? Trakt.Result.getSuccess() : Trakt.Result.getErrorNetwork();
         } catch (Exception exception) {
             log.warn("Scrob webhook failed", exception);
+            if (exception instanceof java.io.IOException) {
+                ScrobAuthManager.recordConnectionCheck(
+                        context,
+                        unreachableConnectionCheck(exception));
+            }
             prefs(context).edit()
                     .putLong(KEY_LAST_WEBHOOK_AT, System.currentTimeMillis())
                     .putString(KEY_LAST_EVENT, method)

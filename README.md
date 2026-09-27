@@ -1,4 +1,4 @@
-# NOVA Scrob v0.2.0-dev.10
+# NOVA Scrob v0.2.0-dev.11
 
 Minimal NOVA Video Player fork for direct playback tracking to a self-hosted Scrob instance.
 
@@ -6,11 +6,37 @@ Minimal NOVA Video Player fork for direct playback tracking to a self-hosted Scr
 
 The 0.2.x line is focused on maintainability: preserve the playback behavior proven in v0.1.7/dev.8 while making the Scrob integration easier to inspect, test, rebase, and eventually present upstream as an optional feature.
 
-`v0.2.0-dev.10` completes the first configuration/authentication separation begun in dev.9. The settings UI now consumes the dedicated connection/authentication abstractions directly instead of reading configuration through temporary compatibility methods on the webhook transport. The existing API-key UX and saved preference keys remain unchanged.
+`v0.2.0-dev.11` builds on the dev.9/dev.10 configuration/authentication boundary by adding an explicit connection-state and diagnostics model. It does not change the established API-key storage, webhook lifecycle, or player integration.
+
+## Connection state model
+
+The connection model now uses these explicit states:
+
+```text
+Unconfigured
+Configured
+Testing
+Connected
+Authentication failed
+Server unreachable
+Server/API incompatible
+```
+
+The states are deliberately diagnostic rather than a second enable/disable mechanism:
+
+- `Unconfigured` — URL and/or credentials are absent.
+- `Configured` — URL and credentials exist, but dev.11 has no last-known connectivity result yet. Existing dev.10 installations naturally begin here after upgrade.
+- `Testing` — transient UI state while the connection dialog is actively testing a candidate connection; never persisted.
+- `Connected` — the last connection test or webhook HTTP observation succeeded.
+- `Authentication failed` — the last observation returned HTTP 401/403.
+- `Server unreachable` — the connection attempt failed before an HTTP result could be obtained.
+- `Server/API incompatible` — Scrob was reachable but returned HTML or another HTTP/API result that does not satisfy the expected API contract.
+
+A non-Connected last-known state does **not** disable playback tracking. `ScrobConnection.isEnabled()` retains dev.10 behavior: the user setting must be enabled and a URL/credential configuration must exist. This lets later webhook attempts recover naturally after a transient outage.
 
 ## Authentication/configuration architecture
 
-The injected MediaLib layer separates these concerns:
+The injected MediaLib layer now separates these concerns:
 
 ```text
 ScrobConfig
@@ -21,23 +47,28 @@ ScrobCredentials
 
 ScrobAuthManager
     load/save/disconnect boundary
-    credential-editing access for the settings dialog
+    + non-secret last-known connection-state persistence
 
 ScrobConnection
-    immutable configured/enabled connection state
+    immutable configured/enabled connection snapshot
+    + last-known state metadata
     + authenticated proxy endpoint construction
+
+ScrobConnectionState
+    explicit state vocabulary
+
+ScrobConnectionCheck
+    credential-free result of a test/transport observation
 
 Scrob
     webhook payload/HTTP transport
-    + connection test
+    + connection testing/classification
     + diagnostics
 ```
 
-`ScrobLoginPreference` now obtains the current `ScrobConnection`, URL, credential-editing value, save action, and disconnect action through `ScrobAuthManager` / `ScrobConnection`. It uses `Scrob.testConnection(...)` only for the real HTTP test request.
+`ScrobLoginPreference` shows the persisted state, uses the transient `Testing` state during a test, saves credentials only after a `Connected` result, and reports the classified failure without exposing the API key.
 
-The temporary dev.9 settings compatibility methods on `Scrob` have been removed. Static and preflight checks reject reintroduction of those calls.
-
-API key remains the only supported authentication method. dev.10 does not invent OAuth, device-code, QR, or pairing behavior that the Scrob server has not established.
+API key remains the only supported authentication method. dev.11 does not invent OAuth, device-code, QR, or pairing behavior that the Scrob server has not established.
 
 For upgrade compatibility, these existing preference keys are unchanged:
 
@@ -47,9 +78,27 @@ scrob_api_key
 scrob_enabled
 ```
 
-The credential storage mechanism is also intentionally unchanged. Future storage migration can happen behind `ScrobCredentials` / `ScrobAuthManager` without requiring player or webhook code to know about it.
+The additional connection-state metadata contains no credential material. Error-facing endpoint text continues to redact the `api_key` query value.
 
-Error-facing endpoint text continues to redact the `api_key` query value.
+## Diagnostics
+
+NOVA Scrob diagnostics now include:
+
+```text
+Scrob URL
+Connection state
+Authentication method
+Last connection check
+Connection detail
+Last webhook
+HTTP status
+Event
+Title
+Stage
+Last error
+```
+
+No raw API key is included.
 
 ## Upstream source and locking
 
@@ -73,12 +122,11 @@ The source-resolution path uses the official release `manifest.xml` as the immut
 - Kodi-compatible webhook payloads.
 - `Player.OnPlay`, `Player.OnPause`, `Player.OnStop`, and 60-second progress updates.
 - Player Back action sends the final stop and suppresses duplicate stops.
-- Diagnostics show fork/base versions, connection state, last webhook, HTTP status, event, title, stage, and last error.
 - Package identity remains `org.courville.novascrob`.
 
 ## Player integration boundary
 
-`PlayerActivity` delegates Scrob lifecycle behavior to `ScrobPlaybackBridge`. The bridge owns periodic progress scheduling, duplicate-stop suppression, NOVA 6.4.72 `PlayerService.PlaybackSnapshot` position capture, the live-player fallback, and webhook dispatch. dev.10 intentionally leaves this validated player boundary unchanged.
+`PlayerActivity` delegates Scrob lifecycle behavior to `ScrobPlaybackBridge`. The bridge owns periodic progress scheduling, duplicate-stop suppression, NOVA 6.4.72 `PlayerService.PlaybackSnapshot` position capture, the live-player fallback, and webhook dispatch. dev.11 intentionally leaves this validated player boundary unchanged.
 
 ## Patch and CI checks
 
@@ -105,4 +153,4 @@ GitHub Actions performs the authoritative source resolution, preflight, Gradle b
 
 ## Next build
 
-`v0.2.0-dev.11` should add an explicit connection-state/diagnostics model (`Unconfigured`, `Configured`, `Testing`, `Connected`, `Authentication failed`, `Server unreachable`, `Server/API incompatible`) without exposing credentials or changing webhook behavior.
+After dev.11 is validated, the next 0.2.x work should emphasize lifecycle-focused tests and further reduction of fork-specific patch surface rather than adding speculative authentication methods.

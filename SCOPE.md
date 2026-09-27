@@ -36,21 +36,17 @@ Make the Scrob integration cheaper and safer to maintain across upstream NOVA re
 - Add static/preflight/CI guards against direct preference-key ownership or use of the removed facade.
 - Preserve existing preference storage and all validated player/webhook behavior.
 
+### v0.2.0-dev.11 — explicit connection state and diagnostics
+
+- Add the explicit state vocabulary: `Unconfigured`, `Configured`, `Testing`, `Connected`, `Authentication failed`, `Server unreachable`, and `Server/API incompatible`.
+- Treat existing upgraded configurations as `Configured` until a dev.11 test or webhook establishes a last-known connectivity result.
+- Keep `Testing` transient and persist only credential-safe last-known status metadata.
+- Classify authentication, reachability, and API-shape failures centrally in the transport layer.
+- Keep last-known connection state informational: it does not gate playback or replace the user's enabled setting.
+- Expand diagnostics without exposing the API key.
+- Preserve dev.10 credential/config keys and all validated player/webhook behavior.
+
 ## Next 0.2.x steps
-
-### v0.2.0-dev.11
-
-Improve explicit connection-state/diagnostic classification without exposing credentials:
-
-```text
-Unconfigured
-Configured
-Testing
-Connected
-Authentication failed
-Server unreachable
-Server/API incompatible
-```
 
 ### Later
 

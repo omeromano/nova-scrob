@@ -1,5 +1,20 @@
 # Changelog
 
+## v0.2.0-dev.11
+
+### Explicit connection state and safer diagnostics
+
+- Add an explicit credential-safe connection-state vocabulary: `Unconfigured`, `Configured`, `Testing`, `Connected`, `Authentication failed`, `Server unreachable`, and `Server/API incompatible`.
+- Treat dev.10 upgrades with existing URL/API-key configuration but no state metadata as `Configured`; no credential re-entry or migration is required.
+- Add `ScrobConnectionCheck` so connection tests and transport observations carry state, HTTP status, detail, and timestamp without carrying the API key.
+- Classify HTTP 401/403 as authentication failure, non-API/HTML or other unexpected HTTP responses as server/API incompatibility, successful API responses as connected, and connection exceptions as server unreachable.
+- Keep `Testing` transient: it is shown by the connection dialog but is never persisted across process restarts.
+- Persist only last-known, non-secret connection-state metadata for the configured connection; disconnecting or saving changed credentials clears stale state before a successful test records the new result.
+- Let successful and failed webhook HTTP observations refresh last-known connection state while preserving the existing webhook success/error return semantics.
+- Do **not** gate playback on `Connected`: tracking enablement remains based only on the user's enabled setting plus valid saved URL/credentials, so a transient outage does not silently disable future webhook attempts.
+- Expand diagnostics with connection state, authentication method, last connection-check time, and credential-safe connection detail.
+- Keep the legacy `scrob_url`, `scrob_api_key`, and `scrob_enabled` keys, API-key login, player bridge, webhook lifecycle, 60-second cadence, duplicate-stop suppression, Back behavior, package identity, and NOVA v6.4.72 source lock unchanged.
+
 ## v0.2.0-dev.10
 
 ### Settings UI migration onto the auth/config boundary
