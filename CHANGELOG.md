@@ -1,5 +1,19 @@
 # Changelog
 
+## v0.2.0-dev.12
+
+### Executable playback lifecycle regression harness
+
+- Add a dependency-free Java 17 regression harness that compiles and executes the actual `ScrobPlaybackBridge.java` template against deterministic Android/NOVA test stubs before the expensive upstream source build.
+- Lock the established lifecycle contract for `Player.OnPlay`, 60-second `Player.OnAVChange` progress sampling, `Player.OnPause`, and `Player.OnStop`.
+- Verify `PlayerService.PlaybackSnapshot` remains the preferred position/duration source and the live `Player` remains the fallback.
+- Verify pause, stop, and release cancel scheduled progress callbacks; periodic samples reschedule at exactly 60 seconds while playback remains bound.
+- Verify duplicate `Player.OnStop` callbacks are suppressed and remain diagnosable.
+- Verify missing/inactive playback state skips non-stop dispatch safely while a final stop can still be emitted with safe zero progress when no live position is available.
+- Add a transport-failure regression contract that keeps webhook dispatch asynchronous, preserves HTTP/auth/API failure classification, records I/O failures as `Server unreachable`, redacts API-key material from errors, and returns the existing network-error result instead of changing playback enablement.
+- Run the transport contract in the early Python boundary checks and the executable lifecycle harness immediately after Java 17 setup in GitHub Actions.
+- No production Java, player patch, webhook payload, authentication/configuration behavior, package identity, or NOVA v6.4.72 source-lock behavior is intentionally changed from dev.11.
+
 ## v0.2.0-dev.11
 
 ### Explicit connection state and safer diagnostics

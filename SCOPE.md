@@ -46,12 +46,19 @@ Make the Scrob integration cheaper and safer to maintain across upstream NOVA re
 - Expand diagnostics without exposing the API key.
 - Preserve dev.10 credential/config keys and all validated player/webhook behavior.
 
+### v0.2.0-dev.12 — playback/webhook lifecycle regression harness
+
+- Add a plain Java 17 executable test harness around the actual `ScrobPlaybackBridge` template with deterministic Android/NOVA stubs.
+- Lock play → periodic progress → pause/stop semantics, exact 60-second cadence, duplicate-stop suppression, snapshot/live-player position fallback, missing playback-state behavior, and release cleanup.
+- Add a transport-failure source contract covering asynchronous dispatch, auth/API/reachability classification, diagnostic error containment, and API-key redaction.
+- Run these checks before the full NOVA Gradle build so lifecycle regressions fail cheaply and distinctly from upstream/compiler failures.
+- Keep production player/transport/auth code unchanged from the validated dev.11 baseline.
+
 ## Next 0.2.x steps
 
 ### Later
 
 - Verify which alternate authentication/provisioning mechanisms Scrob actually supports before implementing any.
-- Add lifecycle-focused tests around webhook event semantics.
 - Continue reducing fork-specific patch surface.
 - Prepare an upstream-friendly feature patch containing the optional Scrob integration, not NOVA Scrob branding/package/build infrastructure.
 

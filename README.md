@@ -1,4 +1,4 @@
-# NOVA Scrob v0.2.0-dev.11
+# NOVA Scrob v0.2.0-dev.12
 
 Minimal NOVA Video Player fork for direct playback tracking to a self-hosted Scrob instance.
 
@@ -6,7 +6,7 @@ Minimal NOVA Video Player fork for direct playback tracking to a self-hosted Scr
 
 The 0.2.x line is focused on maintainability: preserve the playback behavior proven in v0.1.7/dev.8 while making the Scrob integration easier to inspect, test, rebase, and eventually present upstream as an optional feature.
 
-`v0.2.0-dev.11` builds on the dev.9/dev.10 configuration/authentication boundary by adding an explicit connection-state and diagnostics model. It does not change the established API-key storage, webhook lifecycle, or player integration.
+`v0.2.0-dev.12` builds on the validated dev.11 connection-state architecture by adding an executable regression-test layer around the established playback/webhook lifecycle. Production player, transport, authentication, and configuration code are intentionally unchanged from dev.11.
 
 ## Connection state model
 
@@ -126,16 +126,25 @@ The source-resolution path uses the official release `manifest.xml` as the immut
 
 ## Player integration boundary
 
-`PlayerActivity` delegates Scrob lifecycle behavior to `ScrobPlaybackBridge`. The bridge owns periodic progress scheduling, duplicate-stop suppression, NOVA 6.4.72 `PlayerService.PlaybackSnapshot` position capture, the live-player fallback, and webhook dispatch. dev.11 intentionally leaves this validated player boundary unchanged.
+`PlayerActivity` delegates Scrob lifecycle behavior to `ScrobPlaybackBridge`. The bridge owns periodic progress scheduling, duplicate-stop suppression, NOVA 6.4.72 `PlayerService.PlaybackSnapshot` position capture, the live-player fallback, and webhook dispatch. dev.12 leaves this validated production boundary unchanged and now tests the actual bridge template with a dependency-free Java harness.
 
 ## Patch and CI checks
 
-Run the local static architecture checks with:
+Run the local static architecture and transport-contract checks with:
 
 ```bash
 python3 scripts/tests/test_verify_player_boundary.py
 python3 scripts/tests/test_scrob_auth_architecture.py
+python3 scripts/tests/test_scrob_transport_failure_contract.py
 ```
+
+Run the executable playback lifecycle regression harness with Java 17:
+
+```bash
+bash scripts/tests/run_playback_lifecycle_tests.sh
+```
+
+The lifecycle harness compiles the real `ScrobPlaybackBridge.java` template against deterministic test stubs and exercises play, 60-second progress, pause/stop, duplicate-stop suppression, playback-snapshot/live-player fallback, missing playback state, disabled tracking, and release cleanup. It introduces no runtime/test dependency into the Android app.
 
 Run a non-destructive patch preflight against a resolved NOVA tree with:
 
@@ -153,4 +162,4 @@ GitHub Actions performs the authoritative source resolution, preflight, Gradle b
 
 ## Next build
 
-After dev.11 is validated, the next 0.2.x work should emphasize lifecycle-focused tests and further reduction of fork-specific patch surface rather than adding speculative authentication methods.
+After dev.12 is validated, the next 0.2.x work can use this lifecycle safety net while reducing the remaining fork-specific/upstream patch surface. Alternate authentication should still wait for evidence of a server-supported mechanism.

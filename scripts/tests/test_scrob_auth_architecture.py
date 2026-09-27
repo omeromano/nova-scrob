@@ -31,12 +31,12 @@ def main():
     scrob = read("Scrob.java")
     login = (VIDEO_SCROB_DIR / "ScrobLoginPreference.java").read_text(encoding="utf-8")
 
-    # Upgrade compatibility: dev.11 keeps established config/credential keys exactly.
+    # Upgrade compatibility: the connection-state layer keeps established config/credential keys exactly.
     require(config, 'KEY_ENABLED = "scrob_enabled"', "ScrobConfig")
     require(config, 'KEY_URL = "scrob_url"', "ScrobConfig")
     require(credentials, 'KEY_API_KEY = "scrob_api_key"', "ScrobCredentials")
 
-    # Explicit state vocabulary required by dev.11.
+    # Explicit state vocabulary required by the connection-state model.
     for needle in (
         'UNCONFIGURED("Unconfigured")',
         'CONFIGURED("Configured")',
@@ -151,7 +151,7 @@ def main():
             if f'"{key}"' in text:
                 raise AssertionError(f"{java.name} directly reads/writes preference key {key}")
 
-    print("Scrob dev.11 connection-state/auth boundary checks passed")
+    print("Scrob connection-state/auth boundary checks passed")
 
 
 if __name__ == "__main__":

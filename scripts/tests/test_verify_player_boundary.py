@@ -26,7 +26,7 @@ class FakeContext:
     def __init__(self, player_activity):
         self.values = {
             "APP_ID": "org.courville.novascrob",
-            "APP_VERSION": "0.2.0-dev.11",
+            "APP_VERSION": "0.2.0-dev.12",
             "NOVA_BASE_VERSION": "6.4.72",
         }
         self.text = {
@@ -42,7 +42,7 @@ class FakeContext:
                 "Scrob.postPlaybackAsync(context, videoInfo, progress, method, ended);",
             )),
             "Video/src/main/java/com/archos/mediacenter/video/scrob/ScrobDiagnosticsPreference.java": (
-                'NOVA Scrob: v0.2.0-dev.11\\nBase NOVA: v6.4.72\\n\\n'
+                'NOVA Scrob: v0.2.0-dev.12\\nBase NOVA: v6.4.72\\n\\n'
             ),
             "Video/src/main/java/com/archos/mediacenter/video/scrob/ScrobLoginPreference.java": (
                 SCRIPT_DIR
