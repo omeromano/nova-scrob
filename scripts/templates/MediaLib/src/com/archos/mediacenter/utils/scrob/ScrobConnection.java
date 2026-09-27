@@ -2,7 +2,7 @@ package com.archos.mediacenter.utils.scrob;
 
 import java.net.URLEncoder;
 
-/** Immutable connection snapshot consumed by Scrob transport code. */
+/** Immutable connection snapshot for transport and read-only settings state. */
 public final class ScrobConnection {
     private final ScrobConfig config;
     private final ScrobCredentials credentials;
@@ -32,10 +32,6 @@ public final class ScrobConnection {
         return isConfigured()
                 ? "Connected with an " + credentials.getDescription()
                 : "Not connected";
-    }
-
-    String apiKeyForEditing() {
-        return credentials.apiKeyValue();
     }
 
     String proxyUrl(String path) throws Exception {

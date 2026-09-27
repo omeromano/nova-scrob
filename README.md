@@ -1,4 +1,4 @@
-# NOVA Scrob v0.2.0-dev.9
+# NOVA Scrob v0.2.0-dev.10
 
 Minimal NOVA Video Player fork for direct playback tracking to a self-hosted Scrob instance.
 
@@ -6,11 +6,11 @@ Minimal NOVA Video Player fork for direct playback tracking to a self-hosted Scr
 
 The 0.2.x line is focused on maintainability: preserve the playback behavior proven in v0.1.7/dev.8 while making the Scrob integration easier to inspect, test, rebase, and eventually present upstream as an optional feature.
 
-`v0.2.0-dev.9` starts the next maintenance boundary: Scrob configuration and authentication are no longer treated as incidental details of the webhook transport. The existing API-key UX and saved preference keys are deliberately preserved, so installing dev.9 over dev.8 should not require reconnecting.
+`v0.2.0-dev.10` completes the first configuration/authentication separation begun in dev.9. The settings UI now consumes the dedicated connection/authentication abstractions directly instead of reading configuration through temporary compatibility methods on the webhook transport. The existing API-key UX and saved preference keys remain unchanged.
 
 ## Authentication/configuration architecture
 
-The injected MediaLib layer now separates these concerns:
+The injected MediaLib layer separates these concerns:
 
 ```text
 ScrobConfig
@@ -21,16 +21,23 @@ ScrobCredentials
 
 ScrobAuthManager
     load/save/disconnect boundary
+    credential-editing access for the settings dialog
 
 ScrobConnection
     immutable configured/enabled connection state
     + authenticated proxy endpoint construction
 
 Scrob
-    webhook payload/HTTP transport + diagnostics compatibility facade
+    webhook payload/HTTP transport
+    + connection test
+    + diagnostics
 ```
 
-API key remains the only supported authentication method. dev.9 does not invent OAuth, device-code, QR, or pairing behavior that the Scrob server has not established.
+`ScrobLoginPreference` now obtains the current `ScrobConnection`, URL, credential-editing value, save action, and disconnect action through `ScrobAuthManager` / `ScrobConnection`. It uses `Scrob.testConnection(...)` only for the real HTTP test request.
+
+The temporary dev.9 settings compatibility methods on `Scrob` have been removed. Static and preflight checks reject reintroduction of those calls.
+
+API key remains the only supported authentication method. dev.10 does not invent OAuth, device-code, QR, or pairing behavior that the Scrob server has not established.
 
 For upgrade compatibility, these existing preference keys are unchanged:
 
@@ -40,9 +47,9 @@ scrob_api_key
 scrob_enabled
 ```
 
-The credential storage mechanism is also intentionally unchanged in dev.9. Future storage migration can now happen behind `ScrobCredentials` / `ScrobAuthManager` without requiring player or webhook code to know about it.
+The credential storage mechanism is also intentionally unchanged. Future storage migration can happen behind `ScrobCredentials` / `ScrobAuthManager` without requiring player or webhook code to know about it.
 
-Error-facing endpoint text redacts the `api_key` query value so connection failures do not expose the raw key.
+Error-facing endpoint text continues to redact the `api_key` query value.
 
 ## Upstream source and locking
 
@@ -71,7 +78,7 @@ The source-resolution path uses the official release `manifest.xml` as the immut
 
 ## Player integration boundary
 
-`PlayerActivity` delegates Scrob lifecycle behavior to `ScrobPlaybackBridge`. The bridge owns periodic progress scheduling, duplicate-stop suppression, NOVA 6.4.72 `PlayerService.PlaybackSnapshot` position capture, the live-player fallback, and webhook dispatch. dev.9 does not alter this boundary.
+`PlayerActivity` delegates Scrob lifecycle behavior to `ScrobPlaybackBridge`. The bridge owns periodic progress scheduling, duplicate-stop suppression, NOVA 6.4.72 `PlayerService.PlaybackSnapshot` position capture, the live-player fallback, and webhook dispatch. dev.10 intentionally leaves this validated player boundary unchanged.
 
 ## Patch and CI checks
 
@@ -98,4 +105,4 @@ GitHub Actions performs the authoritative source resolution, preflight, Gradle b
 
 ## Next build
 
-`v0.2.0-dev.10` should move the preferences UI onto the new configuration/authentication APIs and remove the temporary settings compatibility methods from `Scrob`, without changing stored credentials or playback behavior.
+`v0.2.0-dev.11` should add an explicit connection-state/diagnostics model (`Unconfigured`, `Configured`, `Testing`, `Connected`, `Authentication failed`, `Server unreachable`, `Server/API incompatible`) without exposing credentials or changing webhook behavior.

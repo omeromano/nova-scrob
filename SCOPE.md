@@ -25,15 +25,18 @@ Make the Scrob integration cheaper and safer to maintain across upstream NOVA re
 - Preserve `scrob_url`, `scrob_api_key`, and `scrob_enabled` exactly for upgrade compatibility.
 - Keep API key as the sole supported auth mechanism while making auth method extensible.
 - Make transport consume `ScrobConnection` rather than directly reading credential/config preferences.
-- Keep the existing settings UI on a compatibility facade for this first refactor step.
 - Redact API keys from error-facing endpoint text.
-- Add static/CI guards for the new boundary.
+
+### v0.2.0-dev.10 — settings UI migration
+
+- Move `ScrobLoginPreference` onto `ScrobAuthManager` / `ScrobConnection` for state, URL, credential editing, save, and disconnect.
+- Remove the temporary dev.9 settings compatibility facade from `Scrob`.
+- Keep actual HTTP connection testing in the transport layer.
+- Keep raw API-key editing access narrowly exposed through `ScrobAuthManager`, not `ScrobConnection`.
+- Add static/preflight/CI guards against direct preference-key ownership or use of the removed facade.
+- Preserve existing preference storage and all validated player/webhook behavior.
 
 ## Next 0.2.x steps
-
-### v0.2.0-dev.10
-
-Move the preferences UI onto `ScrobConfig` / `ScrobAuthManager` / `ScrobConnection` and remove direct settings-facing compatibility reads from `Scrob`.
 
 ### v0.2.0-dev.11
 

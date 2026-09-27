@@ -99,6 +99,10 @@ jobs:
           grep -n 'KEY_API_KEY = "scrob_api_key"' nova-src/MediaLib/src/com/archos/mediacenter/utils/scrob/ScrobCredentials.java
           grep -n "ScrobAuthManager.getConnection" nova-src/MediaLib/src/com/archos/mediacenter/utils/scrob/Scrob.java
           grep -n "class ScrobLoginPreference" nova-src/Video/src/main/java/com/archos/mediacenter/video/scrob/ScrobLoginPreference.java
+          grep -n "ScrobAuthManager.getConnection(ctx)" nova-src/Video/src/main/java/com/archos/mediacenter/video/scrob/ScrobLoginPreference.java
+          grep -n "ScrobAuthManager.getApiKeyForEditing(ctx)" nova-src/Video/src/main/java/com/archos/mediacenter/video/scrob/ScrobLoginPreference.java
+          grep -n "ScrobAuthManager.saveApiKeyConnection(ctx,u,k)" nova-src/Video/src/main/java/com/archos/mediacenter/video/scrob/ScrobLoginPreference.java
+          ! grep -q "Scrob\.baseUrl(\|Scrob\.apiKey(\|Scrob\.hasConnection(\|Scrob\.status(\|Scrob\.saveConnection(\|Scrob\.disconnect(" nova-src/Video/src/main/java/com/archos/mediacenter/video/scrob/ScrobLoginPreference.java
           test -f nova-src/Video/src/main/java/com/archos/mediacenter/video/scrob/ScrobPlaybackBridge.java
           grep -n "mScrobPlayback.onPlay" nova-src/Video/src/main/java/com/archos/mediacenter/video/player/PlayerActivity.java
           grep -n "PROGRESS_INTERVAL_MS = 60000L" nova-src/Video/src/main/java/com/archos/mediacenter/video/scrob/ScrobPlaybackBridge.java

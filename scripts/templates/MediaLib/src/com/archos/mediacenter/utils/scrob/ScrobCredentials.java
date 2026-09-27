@@ -6,9 +6,9 @@ import android.content.SharedPreferences;
 /**
  * Scrob credential snapshot.
  *
- * dev.9 deliberately keeps the legacy API-key preference key/storage so users
- * upgrading from dev.8 do not need to reconnect. The storage mechanism can be
- * migrated later behind this class without changing playback or transport code.
+ * The 0.2.x line deliberately keeps the legacy API-key preference key/storage so
+ * upgrades retain the existing connection. The storage mechanism can be migrated
+ * later behind this class without changing playback or transport code.
  */
 public final class ScrobCredentials {
     static final String KEY_API_KEY = "scrob_api_key";

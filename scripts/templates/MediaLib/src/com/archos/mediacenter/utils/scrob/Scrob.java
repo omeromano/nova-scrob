@@ -22,9 +22,9 @@ import java.nio.charset.StandardCharsets;
  * Scrob webhook transport matching ellite/scrob-kodi's API-key contract.
  *
  * Configuration and authentication persistence live behind ScrobConfig,
- * ScrobCredentials, ScrobConnection, and ScrobAuthManager. The small public
- * compatibility methods below intentionally keep the dev.8 settings UI stable
- * during the dev.9 architectural migration.
+ * ScrobCredentials, ScrobConnection, and ScrobAuthManager. Settings UI code
+ * consumes those abstractions directly; this class remains focused on webhook
+ * transport, connection testing, and diagnostics.
  */
 public final class Scrob {
     private static final Logger log = LoggerFactory.getLogger(Scrob.class);
@@ -46,30 +46,8 @@ public final class Scrob {
         return ScrobConfig.stringValue(preferences, key);
     }
 
-    // Compatibility facade for the existing settings preference. dev.10 can move
-    // the UI directly onto the new abstractions without touching playback code.
-    public static String normalizeUrl(String value) {
-        return ScrobConfig.normalizeUrl(value);
-    }
-
-    public static String baseUrl(Context context) {
-        return ScrobAuthManager.getConnection(context).getBaseUrl();
-    }
-
-    public static String apiKey(Context context) {
-        return ScrobAuthManager.getConnection(context).apiKeyForEditing();
-    }
-
-    public static boolean hasConnection(Context context) {
-        return ScrobAuthManager.getConnection(context).isConfigured();
-    }
-
     public static boolean isEnabled(Context context) {
         return ScrobAuthManager.getConnection(context).isEnabled();
-    }
-
-    public static String status(Context context) {
-        return ScrobAuthManager.getConnection(context).getStatus();
     }
 
     public static String diagnostic(Context context) {
@@ -81,18 +59,15 @@ public final class Scrob {
                         "yyyy-MM-dd HH:mm:ss",
                         java.util.Locale.getDefault())
                         .format(new java.util.Date(at));
-        return "Scrob URL: " + baseUrl(context)
-                + "\nConnection: " + status(context)
+        ScrobConnection connection = ScrobAuthManager.getConnection(context);
+        return "Scrob URL: " + connection.getBaseUrl()
+                + "\nConnection: " + connection.getStatus()
                 + "\nLast webhook: " + when
                 + "\nHTTP status: " + preferences.getInt(KEY_LAST_WEBHOOK_STATUS, 0)
                 + "\nEvent: " + value(preferences, KEY_LAST_EVENT)
                 + "\nTitle: " + value(preferences, KEY_LAST_TITLE)
                 + "\nStage: " + value(preferences, KEY_LAST_STAGE)
                 + "\nLast error: " + value(preferences, KEY_LAST_ERROR);
-    }
-
-    public static void disconnect(Context context) {
-        ScrobAuthManager.disconnect(context);
     }
 
     public static void recordStage(Context context, String stage, VideoDbInfo videoInfo) {
@@ -200,10 +175,6 @@ public final class Scrob {
         }
         ScrobConnection candidate = ScrobAuthManager.apiKeyCandidate(base, key);
         return request("GET", candidate.proxyUrl("webhooks/kodi/history"), null);
-    }
-
-    public static void saveConnection(Context context, String url, String apiKey) {
-        ScrobAuthManager.saveApiKeyConnection(context, url, apiKey);
     }
 
     private static JSONObject hms(long seconds) throws Exception {

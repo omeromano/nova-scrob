@@ -71,8 +71,8 @@ def verify(ctx):
             raise RuntimeError("Scrob playback bridge implementation missing: " + needle)
 
 
-    # dev.9 auth/config boundary: legacy preference keys remain stable, but
-    # transport resolves them through dedicated abstractions.
+    # dev.10 auth/config boundary: legacy preference keys remain stable; transport
+    # and the settings UI resolve configuration through dedicated abstractions.
     config = ctx.result_text(
         "MediaLib/src/com/archos/mediacenter/utils/scrob/ScrobConfig.java"
     )
@@ -107,6 +107,41 @@ def verify(ctx):
     ):
         if leaked_key in scrob:
             raise RuntimeError("Scrob transport still owns credential/config key: " + leaked_key)
+
+    login = ctx.result_text(
+        "Video/src/main/java/com/archos/mediacenter/video/scrob/ScrobLoginPreference.java"
+    )
+    required_ui_boundary = (
+        "ScrobAuthManager.getConnection(ctx)",
+        "ScrobAuthManager.getApiKeyForEditing(ctx)",
+        "ScrobAuthManager.saveApiKeyConnection(ctx,u,k)",
+        "ScrobAuthManager.disconnect(ctx)",
+    )
+    for needle in required_ui_boundary:
+        if needle not in login:
+            raise RuntimeError("Scrob settings UI auth boundary missing: " + needle)
+
+    for stale_ui_call in (
+        "Scrob.baseUrl(",
+        "Scrob.apiKey(",
+        "Scrob.hasConnection(",
+        "Scrob.status(",
+        "Scrob.saveConnection(",
+        "Scrob.disconnect(",
+    ):
+        if stale_ui_call in login:
+            raise RuntimeError("Scrob settings UI still uses compatibility facade: " + stale_ui_call)
+
+    for stale_transport_method in (
+        "public static String baseUrl(",
+        "public static String apiKey(",
+        "public static boolean hasConnection(",
+        "public static String status(",
+        "public static void saveConnection(",
+        "public static void disconnect(",
+    ):
+        if stale_transport_method in scrob:
+            raise RuntimeError("Scrob transport still exposes settings compatibility method: " + stale_transport_method)
 
     diagnostics = ctx.result_text(
         "Video/src/main/java/com/archos/mediacenter/video/scrob/ScrobDiagnosticsPreference.java"

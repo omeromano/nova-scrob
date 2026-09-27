@@ -11,6 +11,8 @@ import android.widget.LinearLayout;
 import android.widget.Toast;
 import androidx.preference.Preference;
 import com.archos.mediacenter.utils.scrob.Scrob;
+import com.archos.mediacenter.utils.scrob.ScrobAuthManager;
+import com.archos.mediacenter.utils.scrob.ScrobConnection;
 
 public class ScrobLoginPreference extends Preference {
     private final Context ctx;
@@ -21,19 +23,23 @@ public class ScrobLoginPreference extends Preference {
 
     private int dp(int n){return (int)(n*ctx.getResources().getDisplayMetrics().density);}
     private EditText field(String hint,int type){EditText e=new EditText(ctx);e.setHint(hint);e.setInputType(type);e.setSingleLine(true);return e;}
-    private void refresh(){setSummary(Scrob.hasConnection(ctx)?Scrob.status(ctx)+" — "+Scrob.baseUrl(ctx):"Enter your Scrob URL and API key");}
+    private void refresh(){
+        ScrobConnection connection=ScrobAuthManager.getConnection(ctx);
+        setSummary(connection.isConfigured()?connection.getStatus()+" — "+connection.getBaseUrl():"Enter your Scrob URL and API key");
+    }
 
     @Override protected void onClick(){super.onClick();showConnection();}
 
     private void showConnection(){
+        ScrobConnection connection=ScrobAuthManager.getConnection(ctx);
         LinearLayout box=new LinearLayout(ctx);
         box.setOrientation(LinearLayout.VERTICAL);
         box.setPadding(dp(24),dp(8),dp(24),0);
 
         EditText url=field("Scrob URL",InputType.TYPE_CLASS_TEXT|InputType.TYPE_TEXT_VARIATION_URI);
-        url.setText(Scrob.baseUrl(ctx));
+        url.setText(connection.getBaseUrl());
         EditText key=field("API key",InputType.TYPE_CLASS_TEXT|InputType.TYPE_TEXT_VARIATION_PASSWORD);
-        key.setText(Scrob.apiKey(ctx));
+        key.setText(ScrobAuthManager.getApiKeyForEditing(ctx));
         box.addView(url);box.addView(key);
 
         AlertDialog dlg=new AlertDialog.Builder(ctx)
@@ -42,7 +48,7 @@ public class ScrobLoginPreference extends Preference {
             .setView(box)
             .setPositiveButton("Test & save",null)
             .setNegativeButton("Cancel",null)
-            .setNeutralButton(Scrob.hasConnection(ctx)?"Disconnect":null,null)
+            .setNeutralButton(connection.isConfigured()?"Disconnect":null,null)
             .create();
 
         dlg.setOnShowListener(x->{
@@ -59,7 +65,7 @@ public class ScrobLoginPreference extends Preference {
                         main.post(()->{
                             b.setEnabled(true);
                             if(r.ok()&&!r.isHtml()){
-                                Scrob.saveConnection(ctx,u,k);
+                                ScrobAuthManager.saveApiKeyConnection(ctx,u,k);
                                 Toast.makeText(ctx,"Connected to Scrob",Toast.LENGTH_SHORT).show();
                                 dlg.dismiss();refresh();notifyChanged();
                             }else{
@@ -74,9 +80,9 @@ public class ScrobLoginPreference extends Preference {
                     }
                 },"ScrobApiKeyTest").start();
             });
-            if(Scrob.hasConnection(ctx)){
+            if(connection.isConfigured()){
                 dlg.getButton(AlertDialog.BUTTON_NEUTRAL).setOnClickListener(v->{
-                    Scrob.disconnect(ctx);dlg.dismiss();refresh();notifyChanged();
+                    ScrobAuthManager.disconnect(ctx);dlg.dismiss();refresh();notifyChanged();
                     Toast.makeText(ctx,"Disconnected from Scrob",Toast.LENGTH_SHORT).show();
                 });
             }

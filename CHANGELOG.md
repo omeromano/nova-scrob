@@ -1,5 +1,17 @@
 # Changelog
 
+## v0.2.0-dev.10
+
+### Settings UI migration onto the auth/config boundary
+
+- Move `ScrobLoginPreference` off the temporary dev.9 `Scrob` settings facade and onto `ScrobAuthManager` / `ScrobConnection` for connection state, URL display, API-key editing, save, and disconnect operations.
+- Remove the temporary `Scrob.baseUrl`, `Scrob.apiKey`, `Scrob.hasConnection`, `Scrob.status`, `Scrob.saveConnection`, `Scrob.disconnect`, and `Scrob.normalizeUrl` settings-facing compatibility methods.
+- Keep the actual connection-test HTTP request in `Scrob.testConnection(...)`; the preference UI no longer owns or reads persistence details.
+- Add the narrowly named `ScrobAuthManager.getApiKeyForEditing(...)` escape hatch for the credential-editing dialog while keeping raw credential access out of `ScrobConnection`.
+- Keep the existing `scrob_url`, `scrob_api_key`, and `scrob_enabled` keys and storage unchanged, preserving upgrade compatibility with dev.9/dev.8.
+- Strengthen static/preflight/CI checks so settings code cannot regress to the removed compatibility facade or directly own the persisted credential/config key literals.
+- Keep `ScrobPlaybackBridge`, PlayerActivity integration, webhook payloads/lifecycle, 60-second progress cadence, duplicate-stop suppression, Back behavior, package identity, and NOVA v6.4.72 source locking unchanged.
+
 ## v0.2.0-dev.9
 
 ### Configuration/authentication boundary

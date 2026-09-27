@@ -6,8 +6,8 @@ import android.content.SharedPreferences;
 /**
  * Authentication/configuration boundary for Scrob.
  *
- * Playback and transport code consume ScrobConnection rather than knowing how
- * credentials are entered or where they are persisted.
+ * Playback, transport, and settings code consume stable Scrob abstractions rather
+ * than knowing how credentials are persisted.
  */
 public final class ScrobAuthManager {
     private ScrobAuthManager() {}
@@ -16,6 +16,14 @@ public final class ScrobAuthManager {
         return new ScrobConnection(
                 ScrobConfig.load(context),
                 ScrobCredentials.load(context));
+    }
+
+    /**
+     * Returns the currently stored API key only for the credential-editing UI.
+     * Playback and transport code must consume ScrobConnection instead.
+     */
+    public static String getApiKeyForEditing(Context context) {
+        return ScrobCredentials.load(context).apiKeyValue();
     }
 
     static ScrobConnection apiKeyCandidate(String url, String apiKey) {
