@@ -26,7 +26,7 @@ class FakeContext:
     def __init__(self, player_activity):
         self.values = {
             "APP_ID": "org.courville.novascrob",
-            "APP_VERSION": "0.2.0-dev.12",
+            "APP_VERSION": "0.2.0-dev.13",
             "NOVA_BASE_VERSION": "6.4.72",
         }
         self.text = {
@@ -42,7 +42,7 @@ class FakeContext:
                 "Scrob.postPlaybackAsync(context, videoInfo, progress, method, ended);",
             )),
             "Video/src/main/java/com/archos/mediacenter/video/scrob/ScrobDiagnosticsPreference.java": (
-                'NOVA Scrob: v0.2.0-dev.12\\nBase NOVA: v6.4.72\\n\\n'
+                'NOVA Scrob: v0.2.0-dev.13\\nBase NOVA: v6.4.72\\n\\n'
             ),
             "Video/src/main/java/com/archos/mediacenter/video/scrob/ScrobLoginPreference.java": (
                 SCRIPT_DIR
@@ -80,9 +80,8 @@ def player_activity(extra=""):
     # Include NOVA 6.4.72's own snapshot call as a regression fixture. It is
     # upstream player logic and must not be classified as Scrob leakage.
     return "\n".join((
-        "import com.archos.mediacenter.video.scrob.ScrobPlaybackBridge;",
-        "private final ScrobPlaybackBridge mScrobPlayback = new ScrobPlaybackBridge(this);",
-        "case MENU_BACK_ID:",
+        "private final com.archos.mediacenter.video.scrob.ScrobPlaybackBridge mScrobPlayback = new com.archos.mediacenter.video.scrob.ScrobPlaybackBridge(this);",
+        "if (item.getItemId() == R.id.scrob_back_menu) {",
         "mScrobPlayback.onStop(mVideoInfo, mPlayer, false);",  # Back
         "mScrobPlayback.onPlay(mVideoInfo, mPlayer);",
         "mScrobPlayback.onPause(mVideoInfo, mPlayer);",

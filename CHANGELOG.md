@@ -1,5 +1,18 @@
 # Changelog
 
+## v0.2.0-dev.13
+
+### First measured upstream patch-surface reduction
+
+- Add exact patch-surface accounting to the patch context and publish `PATCH_SURFACE.md` from CI with upstream-owned files, anchored replacements, PlayerActivity anchors, and standalone Scrob additions.
+- Reduce `PlayerActivity.java` from ten patch anchors to eight by eliminating the Scrob import insertion and custom `MENU_BACK_ID` constant insertion.
+- Use a fully qualified `ScrobPlaybackBridge` type at the bridge field so no upstream import block must be patched.
+- Replace the injected integer Back-menu constant with a standalone Android ID resource, `R.id.scrob_back_menu`, avoiding another upstream field edit.
+- Keep all seven existing bridge references and lifecycle semantics unchanged: play, pause, completion, Back, finish, and destroy behavior remain as in dev.12.
+- Add `test_patch_surface_contract.py` to prevent the removed PlayerActivity edits from returning and to enforce the eight-anchor boundary.
+- Continue running the dev.12 executable lifecycle harness and auth/transport regression contracts before the full NOVA build.
+
+
 ## v0.2.0-dev.12
 
 ### Executable playback lifecycle regression harness

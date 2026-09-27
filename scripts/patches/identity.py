@@ -19,7 +19,7 @@ def apply(ctx):
             f"applicationId patch: expected exactly one active stock NOVA applicationId, found {len(matches)}"
         )
     b = app_id_re.sub(lambda m: f'{m.group(1)}applicationId = "{app_id}"', b, count=1)
-    ctx.write(build, b)
+    ctx.write(build, b, label="fork applicationId", kind="upstream-text")
 
     m = ctx.read(manifest).replace("org.courville.nova", app_id)
     try:
@@ -49,7 +49,7 @@ def apply(ctx):
             child.set(A + "label", "NOVA Scrob")
             child.set(A + "icon", "@mipmap/nova_scrob_icon")
             child.set(A + "roundIcon", "@mipmap/nova_scrob_icon")
-    ctx.write(manifest, ET.tostring(root, encoding="unicode"))
+    ctx.write(manifest, ET.tostring(root, encoding="unicode"), label="fork app branding", kind="upstream-xml")
 
     # Flavor manifests have higher merger priority than the base manifest.
     for flavor_manifest in sorted(ctx.path("Video/src").glob("*/AndroidManifest.xml")):
@@ -64,7 +64,7 @@ def apply(ctx):
         fm_app.set(A + "label", "NOVA Scrob")
         fm_app.set(A + "icon", "@mipmap/nova_scrob_icon")
         fm_app.set(A + "roundIcon", "@mipmap/nova_scrob_icon")
-        ctx.write(rel, ET.tostring(fm_root, encoding="unicode"))
+        ctx.write(rel, ET.tostring(fm_root, encoding="unicode"), label="fork flavor branding", kind="upstream-xml")
 
     ctx.copy_asset("branding/nova_scrob_icon.png", "Video/res/mipmap-nodpi/nova_scrob_icon.png")
     ctx.copy_asset("branding/nova_scrob_foreground.png", "Video/res/drawable-nodpi/nova_scrob_foreground.png")
@@ -73,4 +73,4 @@ def apply(ctx):
 
     for rel in ("Video/res/xml/file_paths.xml", "Video/res/xml/provider_paths.xml"):
         if ctx.path(rel).exists():
-            ctx.write(rel, ctx.read(rel).replace("org.courville.nova", app_id))
+            ctx.write(rel, ctx.read(rel).replace("org.courville.nova", app_id), label="fork provider authority", kind="upstream-text")

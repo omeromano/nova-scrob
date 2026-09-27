@@ -1,4 +1,4 @@
-# NOVA Scrob v0.2.0-dev.12
+# NOVA Scrob v0.2.0-dev.13
 
 Minimal NOVA Video Player fork for direct playback tracking to a self-hosted Scrob instance.
 
@@ -6,7 +6,7 @@ Minimal NOVA Video Player fork for direct playback tracking to a self-hosted Scr
 
 The 0.2.x line is focused on maintainability: preserve the playback behavior proven in v0.1.7/dev.8 while making the Scrob integration easier to inspect, test, rebase, and eventually present upstream as an optional feature.
 
-`v0.2.0-dev.12` builds on the validated dev.11 connection-state architecture by adding an executable regression-test layer around the established playback/webhook lifecycle. Production player, transport, authentication, and configuration code are intentionally unchanged from dev.11.
+`v0.2.0-dev.13` builds on the validated dev.12 lifecycle-test baseline by beginning measured reduction of the upstream patch surface. PlayerActivity now requires eight anchored edits instead of ten: the Scrob import insertion and custom menu-ID constant insertion are gone, while every validated playback lifecycle hook remains unchanged.
 
 ## Connection state model
 
@@ -126,7 +126,7 @@ The source-resolution path uses the official release `manifest.xml` as the immut
 
 ## Player integration boundary
 
-`PlayerActivity` delegates Scrob lifecycle behavior to `ScrobPlaybackBridge`. The bridge owns periodic progress scheduling, duplicate-stop suppression, NOVA 6.4.72 `PlayerService.PlaybackSnapshot` position capture, the live-player fallback, and webhook dispatch. dev.12 leaves this validated production boundary unchanged and now tests the actual bridge template with a dependency-free Java harness.
+`PlayerActivity` delegates Scrob lifecycle behavior to `ScrobPlaybackBridge`. The bridge owns periodic progress scheduling, duplicate-stop suppression, NOVA 6.4.72 `PlayerService.PlaybackSnapshot` position capture, the live-player fallback, and webhook dispatch. dev.13 keeps all seven bridge references (field plus play, pause, completion, Back, finish, and destroy) but reduces the patcher from ten to eight PlayerActivity anchors by using a fully qualified bridge type and a standalone generated `R.id.scrob_back_menu` resource.
 
 ## Patch and CI checks
 
@@ -136,6 +136,7 @@ Run the local static architecture and transport-contract checks with:
 python3 scripts/tests/test_verify_player_boundary.py
 python3 scripts/tests/test_scrob_auth_architecture.py
 python3 scripts/tests/test_scrob_transport_failure_contract.py
+python3 scripts/tests/test_patch_surface_contract.py
 ```
 
 Run the executable playback lifecycle regression harness with Java 17:
@@ -149,8 +150,10 @@ The lifecycle harness compiles the real `ScrobPlaybackBridge.java` template agai
 Run a non-destructive patch preflight against a resolved NOVA tree with:
 
 ```bash
-python3 scripts/apply_nova_scrob.py --check nova-src
+python3 scripts/apply_nova_scrob.py --check --surface-report dist/PATCH_SURFACE.md nova-src
 ```
+
+The optional surface report records the exact upstream-owned files touched by the resolved NOVA release, the number of anchored replacements, the PlayerActivity anchor count, and the standalone Scrob additions. CI publishes `PATCH_SURFACE.md` beside the APK and upstream lock.
 
 Apply the patch with:
 
@@ -162,4 +165,4 @@ GitHub Actions performs the authoritative source resolution, preflight, Gradle b
 
 ## Next build
 
-After dev.12 is validated, the next 0.2.x work can use this lifecycle safety net while reducing the remaining fork-specific/upstream patch surface. Alternate authentication should still wait for evidence of a server-supported mechanism.
+After dev.13 validates, the next reduction should be chosen from the generated `PATCH_SURFACE.md` rather than by guesswork. The priority remains shrinking upstream-owned edits without changing the validated lifecycle contract; alternate authentication should still wait for evidence of a server-supported mechanism.

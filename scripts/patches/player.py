@@ -4,26 +4,14 @@ PLAYER = "Video/src/main/java/com/archos/mediacenter/video/player/PlayerActivity
 def apply(ctx):
     ctx.replace_once(
         PLAYER,
-        "import com.archos.mediacenter.utils.videodb.VideoDbInfo;",
-        "import com.archos.mediacenter.utils.videodb.VideoDbInfo;\nimport com.archos.mediacenter.video.scrob.ScrobPlaybackBridge;",
-        label="PlayerActivity VideoDbInfo import",
-    )
-    ctx.replace_once(
-        PLAYER,
-        "    private static final int MENU_INFO_ID = 101;",
-        "    private static final int MENU_BACK_ID = 100;\n    private static final int MENU_INFO_ID = 101;",
-        label="PlayerActivity menu ids",
-    )
-    ctx.replace_once(
-        PLAYER,
         "    private VideoDbInfo mVideoInfo;",
-        "    private VideoDbInfo mVideoInfo;\n    private final ScrobPlaybackBridge mScrobPlayback = new ScrobPlaybackBridge(this);",
+        "    private VideoDbInfo mVideoInfo;\n    private final com.archos.mediacenter.video.scrob.ScrobPlaybackBridge mScrobPlayback = new com.archos.mediacenter.video.scrob.ScrobPlaybackBridge(this);",
         label="PlayerActivity Scrob bridge",
     )
     ctx.replace_once(
         PLAYER,
         "            mInfoMenuItem = menu.add(MENU_FILE_ACTIONS_GROUP, MENU_INFO_ID, Menu.NONE, R.string.menu_info);",
-        '''            MenuItem backMenuItem = menu.add(MENU_FILE_ACTIONS_GROUP, MENU_BACK_ID, Menu.NONE, "Back");
+        '''            MenuItem backMenuItem = menu.add(MENU_FILE_ACTIONS_GROUP, R.id.scrob_back_menu, Menu.NONE, "Back");
             if (backMenuItem != null) {
                 backMenuItem.setIcon(R.drawable.ic_nova_scrob_back).setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS);
             }
@@ -33,11 +21,12 @@ def apply(ctx):
     ctx.replace_once(
         PLAYER,
         "        switch (item.getItemId()) {\n            case MENU_LOCK_ID:",
-        '''        switch (item.getItemId()) {
-            case MENU_BACK_ID:
-                mScrobPlayback.onStop(mVideoInfo, mPlayer, false);
-                getOnBackPressedDispatcher().onBackPressed();
-                return true;
+        '''        if (item.getItemId() == R.id.scrob_back_menu) {
+            mScrobPlayback.onStop(mVideoInfo, mPlayer, false);
+            getOnBackPressedDispatcher().onBackPressed();
+            return true;
+        }
+        switch (item.getItemId()) {
             case MENU_LOCK_ID:''',
         label="PlayerActivity Back action",
     )
@@ -82,3 +71,4 @@ def apply(ctx):
     )
     ctx.install_template("Video/src/main/java/com/archos/mediacenter/video/scrob/ScrobPlaybackBridge.java")
     ctx.install_template("Video/res/drawable/ic_nova_scrob_back.xml")
+    ctx.install_template("Video/res/values/scrob_ids.xml")

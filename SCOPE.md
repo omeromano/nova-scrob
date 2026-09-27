@@ -54,6 +54,15 @@ Make the Scrob integration cheaper and safer to maintain across upstream NOVA re
 - Run these checks before the full NOVA Gradle build so lifecycle regressions fail cheaply and distinctly from upstream/compiler failures.
 - Keep production player/transport/auth code unchanged from the validated dev.11 baseline.
 
+### v0.2.0-dev.13 — first measured upstream patch-surface reduction
+
+- Inventory patch operations against the exact resolved NOVA source and emit `PATCH_SURFACE.md` in CI/release artifacts.
+- Reduce `PlayerActivity.java` from ten anchored patch edits to eight without removing any validated bridge lifecycle call.
+- Remove the Scrob import insertion by using the bridge's fully qualified class name at the single field declaration.
+- Remove the custom `MENU_BACK_ID` constant insertion and use a standalone `R.id.scrob_back_menu` resource instead.
+- Add a regression contract that locks the reduced eight-anchor PlayerActivity boundary and prevents the two removed edits from creeping back.
+- Keep `ScrobPlaybackBridge`, transport/auth/configuration behavior, webhook semantics, Back behavior, and 60-second cadence unchanged from dev.12.
+
 ## Next 0.2.x steps
 
 ### Later
