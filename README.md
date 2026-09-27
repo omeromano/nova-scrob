@@ -1,12 +1,48 @@
-# NOVA Scrob v0.2.0-dev.8
+# NOVA Scrob v0.2.0-dev.9
 
 Minimal NOVA Video Player fork for direct playback tracking to a self-hosted Scrob instance.
 
 ## 0.2.x direction
 
-The 0.2.x line is focused on maintainability: keep the working v0.1.7 playback behavior while making the Scrob patch easier to inspect, test, and carry forward when NOVA releases a new version.
+The 0.2.x line is focused on maintainability: preserve the playback behavior proven in v0.1.7/dev.8 while making the Scrob integration easier to inspect, test, rebase, and eventually present upstream as an optional feature.
 
-v0.2.0-dev.8 keeps the dev.7 `ScrobPlaybackBridge` refactor and fixes its compatibility verifier so it distinguishes Scrob-owned implementation from NOVA 6.4.72's own `PlayerService` snapshot usage inside `PlayerActivity`. Runtime playback behavior is unchanged. The release manifest remains the immutable multi-repository lock.
+`v0.2.0-dev.9` starts the next maintenance boundary: Scrob configuration and authentication are no longer treated as incidental details of the webhook transport. The existing API-key UX and saved preference keys are deliberately preserved, so installing dev.9 over dev.8 should not require reconnecting.
+
+## Authentication/configuration architecture
+
+The injected MediaLib layer now separates these concerns:
+
+```text
+ScrobConfig
+    non-secret URL/enabled configuration
+
+ScrobCredentials
+    credential snapshot + authentication method
+
+ScrobAuthManager
+    load/save/disconnect boundary
+
+ScrobConnection
+    immutable configured/enabled connection state
+    + authenticated proxy endpoint construction
+
+Scrob
+    webhook payload/HTTP transport + diagnostics compatibility facade
+```
+
+API key remains the only supported authentication method. dev.9 does not invent OAuth, device-code, QR, or pairing behavior that the Scrob server has not established.
+
+For upgrade compatibility, these existing preference keys are unchanged:
+
+```text
+scrob_url
+scrob_api_key
+scrob_enabled
+```
+
+The credential storage mechanism is also intentionally unchanged in dev.9. Future storage migration can now happen behind `ScrobCredentials` / `ScrobAuthManager` without requiring player or webhook code to know about it.
+
+Error-facing endpoint text redacts the `api_key` query value so connection failures do not expose the raw key.
 
 ## Upstream source and locking
 
@@ -22,18 +58,9 @@ Fetch the release source with:
 bash scripts/fetch_nova_source.sh
 ```
 
-That script:
+The source-resolution path uses the official release `manifest.xml` as the immutable multi-repository lock, checks every project out at the recorded 40-character SHA, verifies the untouched Video project declares `6.4.72`, and preserves the manifest as `UPSTREAM_LOCK.xml`. The finished APK is rejected if its Android metadata does not report upstream `versionName='6.4.72'`.
 
-1. downloads `releases/download/v6.4.72/manifest.xml` from `aos-AVP`;
-2. rejects the manifest unless every project revision is an immutable 40-character Git SHA;
-3. materializes every NOVA project at its exact recorded SHA;
-4. applies manifest `copyfile` directives;
-5. verifies the untouched `Video/build.gradle` declares `versionName = '6.4.72'` before patching;
-6. preserves the downloaded manifest as `dist/UPSTREAM_LOCK.xml`, with a text summary and SHA-256 checksum.
-
-The text lock summary reports the resolved `AVP`, `Video`, `MediaLib`, `FileCoreLibrary`, and all other project revisions from the release manifest. The finished APK is rejected if Android package metadata does not report upstream `versionName='6.4.72'`.
-
-## Scrob behavior carried forward from v0.1.7
+## Scrob behavior carried forward
 
 - Scrob URL + API key authentication.
 - Kodi-compatible webhook payloads.
@@ -42,11 +69,20 @@ The text lock summary reports the resolved `AVP`, `Video`, `MediaLib`, `FileCore
 - Diagnostics show fork/base versions, connection state, last webhook, HTTP status, event, title, stage, and last error.
 - Package identity remains `org.courville.novascrob`.
 
-## Patch architecture
+## Player integration boundary
 
-Project/upstream metadata lives in `nova-scrob.properties`. Patch implementation remains split by concern under `scripts/patches/`, while injected Java/XML files live under `scripts/templates/`.
+`PlayerActivity` delegates Scrob lifecycle behavior to `ScrobPlaybackBridge`. The bridge owns periodic progress scheduling, duplicate-stop suppression, NOVA 6.4.72 `PlayerService.PlaybackSnapshot` position capture, the live-player fallback, and webhook dispatch. dev.9 does not alter this boundary.
 
-Run a non-destructive patch preflight with:
+## Patch and CI checks
+
+Run the local static architecture checks with:
+
+```bash
+python3 scripts/tests/test_verify_player_boundary.py
+python3 scripts/tests/test_scrob_auth_architecture.py
+```
+
+Run a non-destructive patch preflight against a resolved NOVA tree with:
 
 ```bash
 python3 scripts/apply_nova_scrob.py --check nova-src
@@ -58,11 +94,8 @@ Apply the patch with:
 python3 scripts/apply_nova_scrob.py nova-src
 ```
 
+GitHub Actions performs the authoritative source resolution, preflight, Gradle build, APK signing, and final package/version verification.
 
-### v0.2.0-dev.8 compatibility note
+## Next build
 
-NOVA 6.4.72 moved runtime playback-position ownership into `PlayerService`. Scrob therefore reads position/duration from `PlayerService.PlaybackSnapshot`, with the live `Player` only as a fallback when the service is unavailable. NOVA itself also uses `getPlaybackSnapshot()` inside `PlayerActivity`; dev.8 therefore verifies only Scrob-specific leakage rather than blacklisting that generic upstream API.
-
-### 0.2.x player integration boundary
-
-Starting with `v0.2.0-dev.7`, NOVA-specific player callbacks in `PlayerActivity` delegate to `ScrobPlaybackBridge`. The bridge owns periodic progress scheduling, duplicate-stop suppression, NOVA 6.4.72 snapshot/fallback position calculation, and Scrob dispatch. This keeps the upstream player patch intentionally shallow for future NOVA rebases.
+`v0.2.0-dev.10` should move the preferences UI onto the new configuration/authentication APIs and remove the temporary settings compatibility methods from `Scrob`, without changing stored credentials or playback behavior.

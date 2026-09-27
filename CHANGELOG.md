@@ -1,5 +1,18 @@
 # Changelog
 
+## v0.2.0-dev.9
+
+### Configuration/authentication boundary
+
+- Introduce `ScrobConfig`, `ScrobCredentials`, `ScrobConnection`, and `ScrobAuthManager` as dedicated abstractions around configuration, credentials, connection state, and authentication persistence.
+- Preserve the existing preference keys (`scrob_url`, `scrob_api_key`, `scrob_enabled`) and default-preference storage so upgrades from dev.8 retain their saved Scrob connection without re-entry.
+- Keep the existing `Scrob` public settings facade for dev.9 so the UI and playback bridge do not need to change in the same build; the facade now delegates connection state and credential persistence through the new boundary.
+- Make webhook transport resolve a `ScrobConnection` snapshot instead of reading URL/API-key preferences directly.
+- Add an authentication method model with API key as the only supported mechanism for now, leaving a clean extension point without inventing unsupported OAuth/device flows.
+- Redact `api_key` values from error-facing endpoint text so an HTML/API mismatch cannot echo the raw key.
+- Add early CI/static architecture checks for legacy-key compatibility, abstraction ownership, endpoint redaction, and the existing PlayerActivity bridge boundary.
+- No intentional change to webhook payloads, player lifecycle semantics, 60-second progress cadence, duplicate-stop suppression, Back behavior, package identity, or NOVA v6.4.72 source locking.
+
 ## v0.2.0-dev.8
 
 - Fix the dev.7 preflight false positive caused by treating NOVA 6.4.72's own `PlayerService.sPlayerService.getPlaybackSnapshot()` call inside `PlayerActivity` as Scrob implementation leakage.

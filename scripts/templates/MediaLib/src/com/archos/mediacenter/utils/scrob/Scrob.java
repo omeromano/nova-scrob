@@ -2,165 +2,326 @@ package com.archos.mediacenter.utils.scrob;
 
 import android.content.Context;
 import android.content.SharedPreferences;
-import androidx.preference.PreferenceManager;
+
 import com.archos.mediacenter.utils.trakt.Trakt;
 import com.archos.mediacenter.utils.videodb.VideoDbInfo;
+
 import org.json.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
 import java.io.BufferedReader;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
-import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 
-/** Minimal Scrob transport matching ellite/scrob-kodi's API-key webhook contract. */
+/**
+ * Scrob webhook transport matching ellite/scrob-kodi's API-key contract.
+ *
+ * Configuration and authentication persistence live behind ScrobConfig,
+ * ScrobCredentials, ScrobConnection, and ScrobAuthManager. The small public
+ * compatibility methods below intentionally keep the dev.8 settings UI stable
+ * during the dev.9 architectural migration.
+ */
 public final class Scrob {
     private static final Logger log = LoggerFactory.getLogger(Scrob.class);
-    public static final String KEY_ENABLED = "scrob_enabled";
-    public static final String KEY_URL = "scrob_url";
-    public static final String KEY_API_KEY = "scrob_api_key";
+
     public static final String KEY_LAST_WEBHOOK_AT = "scrob_last_webhook_at";
     public static final String KEY_LAST_WEBHOOK_STATUS = "scrob_last_webhook_status";
     public static final String KEY_LAST_EVENT = "scrob_last_event";
     public static final String KEY_LAST_TITLE = "scrob_last_title";
     public static final String KEY_LAST_ERROR = "scrob_last_error";
     public static final String KEY_LAST_STAGE = "scrob_last_stage";
+
     private Scrob() {}
 
-    private static SharedPreferences prefs(Context c) { return PreferenceManager.getDefaultSharedPreferences(c.getApplicationContext()); }
-    private static String value(SharedPreferences p,String k){String v=p.getString(k,"");return v==null?"":v.trim();}
-    public static String normalizeUrl(String s){if(s==null)return"";s=s.trim();while(s.endsWith("/"))s=s.substring(0,s.length()-1);return s;}
-    public static String baseUrl(Context c){return normalizeUrl(value(prefs(c),KEY_URL));}
-    public static String apiKey(Context c){return value(prefs(c),KEY_API_KEY);}
-    public static boolean hasConnection(Context c){return !baseUrl(c).isEmpty()&&!apiKey(c).isEmpty();}
-    public static boolean isEnabled(Context c){return prefs(c).getBoolean(KEY_ENABLED,false)&&hasConnection(c);}
-    public static String status(Context c){return hasConnection(c)?"Connected with an API key":"Not connected";}
-    public static String diagnostic(Context c){
-        SharedPreferences p=prefs(c);
-        long at=p.getLong(KEY_LAST_WEBHOOK_AT,0);
-        String when=at==0?"Never":new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss",java.util.Locale.getDefault()).format(new java.util.Date(at));
-        return "Scrob URL: "+baseUrl(c)+"\nConnection: "+status(c)+"\nLast webhook: "+when+
-            "\nHTTP status: "+p.getInt(KEY_LAST_WEBHOOK_STATUS,0)+"\nEvent: "+value(p,KEY_LAST_EVENT)+
-            "\nTitle: "+value(p,KEY_LAST_TITLE)+"\nStage: "+value(p,KEY_LAST_STAGE)+"\nLast error: "+value(p,KEY_LAST_ERROR);
+    private static SharedPreferences prefs(Context context) {
+        return ScrobConfig.preferences(context);
     }
-    public static void disconnect(Context c){prefs(c).edit().remove(KEY_API_KEY).putBoolean(KEY_ENABLED,false).commit();}
-    public static void recordStage(Context c,String stage,VideoDbInfo v){
-        prefs(c).edit().putString(KEY_LAST_STAGE,stage==null?"":stage)
-            .putString(KEY_LAST_TITLE,v==null||v.scraperTitle==null?"":v.scraperTitle).apply();
+
+    private static String value(SharedPreferences preferences, String key) {
+        return ScrobConfig.stringValue(preferences, key);
+    }
+
+    // Compatibility facade for the existing settings preference. dev.10 can move
+    // the UI directly onto the new abstractions without touching playback code.
+    public static String normalizeUrl(String value) {
+        return ScrobConfig.normalizeUrl(value);
+    }
+
+    public static String baseUrl(Context context) {
+        return ScrobAuthManager.getConnection(context).getBaseUrl();
+    }
+
+    public static String apiKey(Context context) {
+        return ScrobAuthManager.getConnection(context).apiKeyForEditing();
+    }
+
+    public static boolean hasConnection(Context context) {
+        return ScrobAuthManager.getConnection(context).isConfigured();
+    }
+
+    public static boolean isEnabled(Context context) {
+        return ScrobAuthManager.getConnection(context).isEnabled();
+    }
+
+    public static String status(Context context) {
+        return ScrobAuthManager.getConnection(context).getStatus();
+    }
+
+    public static String diagnostic(Context context) {
+        SharedPreferences preferences = prefs(context);
+        long at = preferences.getLong(KEY_LAST_WEBHOOK_AT, 0);
+        String when = at == 0
+                ? "Never"
+                : new java.text.SimpleDateFormat(
+                        "yyyy-MM-dd HH:mm:ss",
+                        java.util.Locale.getDefault())
+                        .format(new java.util.Date(at));
+        return "Scrob URL: " + baseUrl(context)
+                + "\nConnection: " + status(context)
+                + "\nLast webhook: " + when
+                + "\nHTTP status: " + preferences.getInt(KEY_LAST_WEBHOOK_STATUS, 0)
+                + "\nEvent: " + value(preferences, KEY_LAST_EVENT)
+                + "\nTitle: " + value(preferences, KEY_LAST_TITLE)
+                + "\nStage: " + value(preferences, KEY_LAST_STAGE)
+                + "\nLast error: " + value(preferences, KEY_LAST_ERROR);
+    }
+
+    public static void disconnect(Context context) {
+        ScrobAuthManager.disconnect(context);
+    }
+
+    public static void recordStage(Context context, String stage, VideoDbInfo videoInfo) {
+        prefs(context).edit()
+                .putString(KEY_LAST_STAGE, stage == null ? "" : stage)
+                .putString(
+                        KEY_LAST_TITLE,
+                        videoInfo == null || videoInfo.scraperTitle == null
+                                ? ""
+                                : videoInfo.scraperTitle)
+                .apply();
     }
 
     public static final class HttpResult {
-        public final int code; public final JSONObject body; public final String raw; public final String contentType; public final String endpoint;
-        HttpResult(int c,JSONObject b,String r,String ct,String ep){code=c;body=b;raw=r;contentType=ct==null?"":ct;endpoint=ep;}
-        public boolean ok(){return code>=200&&code<300;}
-        public boolean isHtml(){String x=raw==null?"":raw.trim().toLowerCase();return contentType.toLowerCase().contains("text/html")||x.startsWith("<!doctype html")||x.startsWith("<html");}
-        public String detail(){String d=body.optString("detail","");if(d.isEmpty())d=body.optString("error","");if(!d.isEmpty())return d;if(isHtml())return "Scrob returned a web page instead of API JSON ("+endpoint+")";String r=raw==null?"":raw.trim();if(r.length()>240)r=r.substring(0,240)+"…";return r.isEmpty()?("HTTP "+code+" from "+endpoint):r;}
-    }
+        public final int code;
+        public final JSONObject body;
+        public final String raw;
+        public final String contentType;
+        public final String endpoint;
 
-    private static String slurp(InputStream in)throws Exception{if(in==null)return"";StringBuilder b=new StringBuilder();try(BufferedReader r=new BufferedReader(new InputStreamReader(in,StandardCharsets.UTF_8))){String l;while((l=r.readLine())!=null)b.append(l);}return b.toString();}
-    private static HttpResult request(String method,String endpoint,byte[] body)throws Exception{
-        HttpURLConnection h=(HttpURLConnection)new URL(endpoint).openConnection();
-        h.setInstanceFollowRedirects(false);
-        h.setRequestMethod(method);
-        h.setConnectTimeout(15000);h.setReadTimeout(15000);
-        h.setRequestProperty("Accept","application/json");
-        if(body!=null){
-            h.setDoOutput(true);
-            h.setRequestProperty("Content-Type","application/json");
-            h.setFixedLengthStreamingMode(body.length);
-            try(OutputStream o=h.getOutputStream()){o.write(body);}
+        HttpResult(int code, JSONObject body, String raw, String contentType, String endpoint) {
+            this.code = code;
+            this.body = body;
+            this.raw = raw;
+            this.contentType = contentType == null ? "" : contentType;
+            this.endpoint = redactEndpoint(endpoint);
         }
-        int code=h.getResponseCode();
-        String ct=h.getContentType();
-        String raw=slurp(code>=200&&code<400?h.getInputStream():h.getErrorStream());
-        h.disconnect();
-        JSONObject j;try{j=raw.isEmpty()?new JSONObject():new JSONObject(raw);}catch(Exception e){j=new JSONObject();}
-        return new HttpResult(code,j,raw,ct,endpoint);
-    }
 
-    private static String enc(String s)throws Exception{return URLEncoder.encode(s==null?"":s,"UTF-8");}
-    private static String apiUrl(String base,String path,String key)throws Exception{
-        return normalizeUrl(base)+"/api/proxy/"+path+"?api_key="+enc(key);
-    }
-
-    public static HttpResult testConnection(String url,String key)throws Exception{
-        String base=normalizeUrl(url), k=key==null?"":key.trim();
-        if(base.isEmpty()||k.isEmpty())throw new IllegalArgumentException("Scrob URL and API key are required");
-        return request("GET",apiUrl(base,"webhooks/kodi/history",k),null);
-    }
-
-    public static void saveConnection(Context c,String url,String key){
-        prefs(c).edit()
-            .putString(KEY_URL,normalizeUrl(url))
-            .putString(KEY_API_KEY,key==null?"":key.trim())
-            .putBoolean(KEY_ENABLED,true)
-            .commit();
-    }
-
-    private static JSONObject hms(long s)throws Exception{s=Math.max(0,s);JSONObject o=new JSONObject();o.put("hours",s/3600);o.put("minutes",(s%3600)/60);o.put("seconds",s%60);return o;}
-    private static JSONObject item(VideoDbInfo v)throws Exception{
-        JSONObject i=new JSONObject(),u=new JSONObject();
-        if(v.isShow){
-            i.put("type","episode");
-            i.put("title",v.scraperTitle==null?"":v.scraperTitle);
-            i.put("showtitle",v.scraperTitle==null?"":v.scraperTitle);
-            i.put("season",v.scraperSeasonNr);
-            i.put("episode",v.scraperEpisodeNr);
-            if(v.scraperEpisodeId!=null&&!v.scraperEpisodeId.isEmpty())u.put("tmdb",v.scraperEpisodeId);
-        }else{
-            i.put("type","movie");
-            i.put("title",v.scraperTitle==null?"":v.scraperTitle);
-            if(v.scraperMovieId!=null&&!v.scraperMovieId.isEmpty())u.put("tmdb",v.scraperMovieId);
+        public boolean ok() {
+            return code >= 200 && code < 300;
         }
-        i.put("uniqueid",u);return i;
+
+        public boolean isHtml() {
+            String response = raw == null ? "" : raw.trim().toLowerCase();
+            return contentType.toLowerCase().contains("text/html")
+                    || response.startsWith("<!doctype html")
+                    || response.startsWith("<html");
+        }
+
+        public String detail() {
+            String detail = body.optString("detail", "");
+            if (detail.isEmpty()) detail = body.optString("error", "");
+            if (!detail.isEmpty()) return redactEndpoint(detail);
+            if (isHtml()) return "Scrob returned a web page instead of API JSON (" + endpoint + ")";
+            String response = raw == null ? "" : raw.trim();
+            if (response.length() > 240) response = response.substring(0, 240) + "…";
+            return response.isEmpty()
+                    ? ("HTTP " + code + " from " + endpoint)
+                    : redactEndpoint(response);
+        }
     }
 
-    public static void postPlaybackAsync(Context c,VideoDbInfo v,float progress,String method,boolean ended){
-        if(!isEnabled(c)||v==null)return;
-        recordStage(c,"dispatch queued: "+method,v);
-        final Context app=c.getApplicationContext();
-        new Thread(()->postPlayback(app,v,progress,method,ended),"NOVA-Scrob-Webhook").start();
+    private static String redactEndpoint(String endpoint) {
+        if (endpoint == null) return "";
+        return endpoint.replaceAll("([?&]api_key=)[^&]*", "$1<redacted>");
     }
 
-    public static Trakt.Result postPlayback(Context c,VideoDbInfo v,float progress,String method,boolean ended){
-        if(!isEnabled(c)||v==null)return Trakt.Result.getError();
-        recordStage(c,"building payload: "+method,v);
-        try{
+    private static String slurp(InputStream input) throws Exception {
+        if (input == null) return "";
+        StringBuilder body = new StringBuilder();
+        try (BufferedReader reader = new BufferedReader(
+                new InputStreamReader(input, StandardCharsets.UTF_8))) {
+            String line;
+            while ((line = reader.readLine()) != null) body.append(line);
+        }
+        return body.toString();
+    }
+
+    private static HttpResult request(String method, String endpoint, byte[] body) throws Exception {
+        HttpURLConnection connection = (HttpURLConnection) new URL(endpoint).openConnection();
+        connection.setInstanceFollowRedirects(false);
+        connection.setRequestMethod(method);
+        connection.setConnectTimeout(15000);
+        connection.setReadTimeout(15000);
+        connection.setRequestProperty("Accept", "application/json");
+        if (body != null) {
+            connection.setDoOutput(true);
+            connection.setRequestProperty("Content-Type", "application/json");
+            connection.setFixedLengthStreamingMode(body.length);
+            try (OutputStream output = connection.getOutputStream()) {
+                output.write(body);
+            }
+        }
+        int code = connection.getResponseCode();
+        String contentType = connection.getContentType();
+        String raw = slurp(
+                code >= 200 && code < 400
+                        ? connection.getInputStream()
+                        : connection.getErrorStream());
+        connection.disconnect();
+        JSONObject json;
+        try {
+            json = raw.isEmpty() ? new JSONObject() : new JSONObject(raw);
+        } catch (Exception ignored) {
+            json = new JSONObject();
+        }
+        return new HttpResult(code, json, raw, contentType, endpoint);
+    }
+
+    public static HttpResult testConnection(String url, String apiKey) throws Exception {
+        String base = ScrobConfig.normalizeUrl(url);
+        String key = apiKey == null ? "" : apiKey.trim();
+        if (base.isEmpty() || key.isEmpty()) {
+            throw new IllegalArgumentException("Scrob URL and API key are required");
+        }
+        ScrobConnection candidate = ScrobAuthManager.apiKeyCandidate(base, key);
+        return request("GET", candidate.proxyUrl("webhooks/kodi/history"), null);
+    }
+
+    public static void saveConnection(Context context, String url, String apiKey) {
+        ScrobAuthManager.saveApiKeyConnection(context, url, apiKey);
+    }
+
+    private static JSONObject hms(long seconds) throws Exception {
+        long value = Math.max(0, seconds);
+        JSONObject object = new JSONObject();
+        object.put("hours", value / 3600);
+        object.put("minutes", (value % 3600) / 60);
+        object.put("seconds", value % 60);
+        return object;
+    }
+
+    private static JSONObject item(VideoDbInfo videoInfo) throws Exception {
+        JSONObject item = new JSONObject();
+        JSONObject uniqueId = new JSONObject();
+        if (videoInfo.isShow) {
+            item.put("type", "episode");
+            item.put("title", videoInfo.scraperTitle == null ? "" : videoInfo.scraperTitle);
+            item.put("showtitle", videoInfo.scraperTitle == null ? "" : videoInfo.scraperTitle);
+            item.put("season", videoInfo.scraperSeasonNr);
+            item.put("episode", videoInfo.scraperEpisodeNr);
+            if (videoInfo.scraperEpisodeId != null && !videoInfo.scraperEpisodeId.isEmpty()) {
+                uniqueId.put("tmdb", videoInfo.scraperEpisodeId);
+            }
+        } else {
+            item.put("type", "movie");
+            item.put("title", videoInfo.scraperTitle == null ? "" : videoInfo.scraperTitle);
+            if (videoInfo.scraperMovieId != null && !videoInfo.scraperMovieId.isEmpty()) {
+                uniqueId.put("tmdb", videoInfo.scraperMovieId);
+            }
+        }
+        item.put("uniqueid", uniqueId);
+        return item;
+    }
+
+    public static void postPlaybackAsync(
+            Context context,
+            VideoDbInfo videoInfo,
+            float progress,
+            String method,
+            boolean ended) {
+        if (!isEnabled(context) || videoInfo == null) return;
+        recordStage(context, "dispatch queued: " + method, videoInfo);
+        final Context appContext = context.getApplicationContext();
+        new Thread(
+                () -> postPlayback(appContext, videoInfo, progress, method, ended),
+                "NOVA-Scrob-Webhook")
+                .start();
+    }
+
+    public static Trakt.Result postPlayback(
+            Context context,
+            VideoDbInfo videoInfo,
+            float progress,
+            String method,
+            boolean ended) {
+        ScrobConnection scrobConnection = ScrobAuthManager.getConnection(context);
+        if (!scrobConnection.isEnabled() || videoInfo == null) return Trakt.Result.getError();
+        recordStage(context, "building payload: " + method, videoInfo);
+        try {
             // NOVA uses Trakt "start" both for initial play/resume and periodic updates.
             // Match scrob-kodi: repeated samples become Player.OnAVChange; a sample after
             // pause remains Player.OnPlay (resume).
-            SharedPreferences p=prefs(c);
-            String title=v.scraperTitle==null?"":v.scraperTitle;
-            String prevEvent=value(p,KEY_LAST_EVENT), prevTitle=value(p,KEY_LAST_TITLE);
-            if("Player.OnPlay".equals(method) && title.equals(prevTitle) &&
-                    ("Player.OnPlay".equals(prevEvent)||"Player.OnAVChange".equals(prevEvent))) method="Player.OnAVChange";
-            long total=Math.max(0,v.duration);
-            long current=total>0?Math.round(total*(Math.max(0f,Math.min(100f,progress))/100.0)):0;
-            JSONObject ps=new JSONObject();
-            ps.put("time",hms(current/1000));
-            ps.put("totaltime",hms(total/1000));
-            JSONObject b=new JSONObject();
-            b.put("method",method);
-            b.put("item",item(v));
-            b.put("player",ps);
-            if("Player.OnStop".equals(method)){
-                JSONObject d=new JSONObject(),pa=new JSONObject();
-                d.put("end",ended);pa.put("data",d);b.put("params",pa);
+            SharedPreferences preferences = prefs(context);
+            String title = videoInfo.scraperTitle == null ? "" : videoInfo.scraperTitle;
+            String previousEvent = value(preferences, KEY_LAST_EVENT);
+            String previousTitle = value(preferences, KEY_LAST_TITLE);
+            if ("Player.OnPlay".equals(method)
+                    && title.equals(previousTitle)
+                    && ("Player.OnPlay".equals(previousEvent)
+                            || "Player.OnAVChange".equals(previousEvent))) {
+                method = "Player.OnAVChange";
             }
-            recordStage(c,"sending HTTP: "+method,v);
-            HttpResult r=request("POST",apiUrl(baseUrl(c),"webhooks/kodi",apiKey(c)),b.toString().getBytes(StandardCharsets.UTF_8));
-            prefs(c).edit().putLong(KEY_LAST_WEBHOOK_AT,System.currentTimeMillis()).putInt(KEY_LAST_WEBHOOK_STATUS,r.code)
-                .putString(KEY_LAST_EVENT,method).putString(KEY_LAST_TITLE,v.scraperTitle==null?"":v.scraperTitle)
-                .putString(KEY_LAST_STAGE,"HTTP response: "+r.code).putString(KEY_LAST_ERROR,r.ok()?"":r.detail()).apply();
-            return r.ok()?Trakt.Result.getSuccess():Trakt.Result.getErrorNetwork();
-        }catch(Exception e){
-            log.warn("Scrob webhook failed",e);
-            prefs(c).edit().putLong(KEY_LAST_WEBHOOK_AT,System.currentTimeMillis()).putString(KEY_LAST_EVENT,method)
-                .putString(KEY_LAST_TITLE,v.scraperTitle==null?"":v.scraperTitle).putString(KEY_LAST_STAGE,"transport exception").putString(KEY_LAST_ERROR,String.valueOf(e.getMessage())).apply();
+
+            long total = Math.max(0, videoInfo.duration);
+            long current = total > 0
+                    ? Math.round(total * (Math.max(0f, Math.min(100f, progress)) / 100.0))
+                    : 0;
+            JSONObject playerState = new JSONObject();
+            playerState.put("time", hms(current / 1000));
+            playerState.put("totaltime", hms(total / 1000));
+
+            JSONObject body = new JSONObject();
+            body.put("method", method);
+            body.put("item", item(videoInfo));
+            body.put("player", playerState);
+            if ("Player.OnStop".equals(method)) {
+                JSONObject data = new JSONObject();
+                JSONObject params = new JSONObject();
+                data.put("end", ended);
+                params.put("data", data);
+                body.put("params", params);
+            }
+
+            recordStage(context, "sending HTTP: " + method, videoInfo);
+            HttpResult result = request(
+                    "POST",
+                    scrobConnection.proxyUrl("webhooks/kodi"),
+                    body.toString().getBytes(StandardCharsets.UTF_8));
+            preferences.edit()
+                    .putLong(KEY_LAST_WEBHOOK_AT, System.currentTimeMillis())
+                    .putInt(KEY_LAST_WEBHOOK_STATUS, result.code)
+                    .putString(KEY_LAST_EVENT, method)
+                    .putString(KEY_LAST_TITLE, title)
+                    .putString(KEY_LAST_STAGE, "HTTP response: " + result.code)
+                    .putString(KEY_LAST_ERROR, result.ok() ? "" : result.detail())
+                    .apply();
+            return result.ok() ? Trakt.Result.getSuccess() : Trakt.Result.getErrorNetwork();
+        } catch (Exception exception) {
+            log.warn("Scrob webhook failed", exception);
+            prefs(context).edit()
+                    .putLong(KEY_LAST_WEBHOOK_AT, System.currentTimeMillis())
+                    .putString(KEY_LAST_EVENT, method)
+                    .putString(
+                            KEY_LAST_TITLE,
+                            videoInfo.scraperTitle == null ? "" : videoInfo.scraperTitle)
+                    .putString(KEY_LAST_STAGE, "transport exception")
+                    .putString(KEY_LAST_ERROR, redactEndpoint(String.valueOf(exception.getMessage())))
+                    .apply();
             return Trakt.Result.getErrorNetwork();
         }
     }

@@ -46,6 +46,7 @@ jobs:
         run: |
           set -euxo pipefail
           python3 scripts/tests/test_verify_player_boundary.py
+          python3 scripts/tests/test_scrob_auth_architecture.py
 
       - name: Set up Java 17
         uses: actions/setup-java@v5
@@ -90,6 +91,13 @@ jobs:
           grep -R "${APP_ID}" -n nova-src/Video/build.gradle nova-src/Video/AndroidManifest.xml
           grep -R "scrob_login\|scrob_enabled" -n nova-src/Video/res/xml/preferences_video.xml
           test -f nova-src/Video/src/main/java/com/archos/mediacenter/video/scrob/ScrobLoginPreference.java
+          test -f nova-src/MediaLib/src/com/archos/mediacenter/utils/scrob/ScrobConfig.java
+          test -f nova-src/MediaLib/src/com/archos/mediacenter/utils/scrob/ScrobCredentials.java
+          test -f nova-src/MediaLib/src/com/archos/mediacenter/utils/scrob/ScrobConnection.java
+          test -f nova-src/MediaLib/src/com/archos/mediacenter/utils/scrob/ScrobAuthManager.java
+          grep -n 'KEY_URL = "scrob_url"' nova-src/MediaLib/src/com/archos/mediacenter/utils/scrob/ScrobConfig.java
+          grep -n 'KEY_API_KEY = "scrob_api_key"' nova-src/MediaLib/src/com/archos/mediacenter/utils/scrob/ScrobCredentials.java
+          grep -n "ScrobAuthManager.getConnection" nova-src/MediaLib/src/com/archos/mediacenter/utils/scrob/Scrob.java
           grep -n "class ScrobLoginPreference" nova-src/Video/src/main/java/com/archos/mediacenter/video/scrob/ScrobLoginPreference.java
           test -f nova-src/Video/src/main/java/com/archos/mediacenter/video/scrob/ScrobPlaybackBridge.java
           grep -n "mScrobPlayback.onPlay" nova-src/Video/src/main/java/com/archos/mediacenter/video/player/PlayerActivity.java

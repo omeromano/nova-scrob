@@ -70,6 +70,44 @@ def verify(ctx):
         if needle not in bridge:
             raise RuntimeError("Scrob playback bridge implementation missing: " + needle)
 
+
+    # dev.9 auth/config boundary: legacy preference keys remain stable, but
+    # transport resolves them through dedicated abstractions.
+    config = ctx.result_text(
+        "MediaLib/src/com/archos/mediacenter/utils/scrob/ScrobConfig.java"
+    )
+    credentials = ctx.result_text(
+        "MediaLib/src/com/archos/mediacenter/utils/scrob/ScrobCredentials.java"
+    )
+    connection = ctx.result_text(
+        "MediaLib/src/com/archos/mediacenter/utils/scrob/ScrobConnection.java"
+    )
+    auth = ctx.result_text(
+        "MediaLib/src/com/archos/mediacenter/utils/scrob/ScrobAuthManager.java"
+    )
+    scrob = ctx.result_text(
+        "MediaLib/src/com/archos/mediacenter/utils/scrob/Scrob.java"
+    )
+    for text, needle, label in (
+        (config, 'KEY_ENABLED = "scrob_enabled"', "legacy enabled key"),
+        (config, 'KEY_URL = "scrob_url"', "legacy URL key"),
+        (credentials, 'KEY_API_KEY = "scrob_api_key"', "legacy API-key key"),
+        (connection, "public boolean isConfigured()", "connection configured state"),
+        (connection, "String proxyUrl(String path)", "connection endpoint builder"),
+        (auth, "saveApiKeyConnection", "auth persistence boundary"),
+        (scrob, "ScrobAuthManager.getConnection(context)", "transport auth boundary"),
+        (scrob, "redactEndpoint(endpoint)", "credential-safe endpoint diagnostics"),
+    ):
+        if needle not in text:
+            raise RuntimeError(f"Scrob auth/config architecture missing {label}: {needle}")
+
+    for leaked_key in (
+        'public static final String KEY_URL = "scrob_url"',
+        'public static final String KEY_API_KEY = "scrob_api_key"',
+    ):
+        if leaked_key in scrob:
+            raise RuntimeError("Scrob transport still owns credential/config key: " + leaked_key)
+
     diagnostics = ctx.result_text(
         "Video/src/main/java/com/archos/mediacenter/video/scrob/ScrobDiagnosticsPreference.java"
     )

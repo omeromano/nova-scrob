@@ -9,11 +9,24 @@ if str(SCRIPT_DIR) not in sys.path:
 from patches.verify import verify
 
 
+SCROB_TEMPLATE_DIR = (
+    SCRIPT_DIR
+    / "templates"
+    / "MediaLib"
+    / "src"
+    / "com"
+    / "archos"
+    / "mediacenter"
+    / "utils"
+    / "scrob"
+)
+
+
 class FakeContext:
     def __init__(self, player_activity):
         self.values = {
             "APP_ID": "org.courville.novascrob",
-            "APP_VERSION": "0.2.0-dev.8",
+            "APP_VERSION": "0.2.0-dev.9",
             "NOVA_BASE_VERSION": "6.4.72",
         }
         self.text = {
@@ -29,9 +42,19 @@ class FakeContext:
                 "Scrob.postPlaybackAsync(context, videoInfo, progress, method, ended);",
             )),
             "Video/src/main/java/com/archos/mediacenter/video/scrob/ScrobDiagnosticsPreference.java": (
-                'NOVA Scrob: v0.2.0-dev.8\\nBase NOVA: v6.4.72\\n\\n'
+                'NOVA Scrob: v0.2.0-dev.9\\nBase NOVA: v6.4.72\\n\\n'
             ),
         }
+        for name in (
+            "ScrobConfig.java",
+            "ScrobCredentials.java",
+            "ScrobConnection.java",
+            "ScrobAuthManager.java",
+            "Scrob.java",
+        ):
+            self.text[
+                "MediaLib/src/com/archos/mediacenter/utils/scrob/" + name
+            ] = (SCROB_TEMPLATE_DIR / name).read_text(encoding="utf-8")
 
     def result_text(self, rel):
         return self.text[rel]
@@ -59,7 +82,9 @@ def main():
     verify(FakeContext(player_activity()))
 
     try:
-        verify(FakeContext(player_activity("Scrob.postPlaybackAsync(context, videoInfo, progress, method, ended);")))
+        verify(FakeContext(player_activity(
+            "Scrob.postPlaybackAsync(context, videoInfo, progress, method, ended);"
+        )))
     except RuntimeError as exc:
         assert "Scrob implementation detail leaked into PlayerActivity" in str(exc)
     else:

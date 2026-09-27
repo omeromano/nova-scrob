@@ -2,55 +2,58 @@
 
 ## Goal
 
-Make the Scrob fork cheaper and safer to maintain across upstream NOVA releases without destabilizing the playback tracking that became reliable in v0.1.7.
+Make the Scrob integration cheaper and safer to maintain across upstream NOVA releases without destabilizing the playback tracking that became reliable in v0.1.7.
 
-## v0.2.0-dev.1 — structural baseline
+## Completed maintenance layers
 
-- Split the former all-in-one patcher by concern.
-- Moved injected source into reviewable templates.
-- Added centralized metadata and non-destructive patch preflight.
+### Source provenance / reproducibility
 
-## v0.2.0-dev.2 / dev.3 — upstream provenance attempts
+- Build against the exact NOVA v6.4.72 release manifest.
+- Require immutable project SHAs and retain `UPSTREAM_LOCK.xml` plus summaries/checksums.
+- Verify the untouched Video source and final APK both identify base NOVA `6.4.72`.
 
-- Moved the target base to NOVA v6.4.72.
-- Added upstream locking and APK version guards.
-- dev.2 failed on helper execute permissions; dev.3 exposed that treating `v6.4.72` as a repo branch was incorrect.
+### Player integration boundary
 
-## v0.2.0-dev.4 — resolved release source
+- `ScrobPlaybackBridge` owns playback lifecycle handling, 60-second progress scheduling, duplicate-stop suppression, and playback position calculation.
+- NOVA 6.4.72 `PlayerService.PlaybackSnapshot` is the primary position source, with live `Player` state as fallback.
+- `PlayerActivity` retains only the shallow bridge hooks and custom Back action integration.
+- CI rejects Scrob implementation details leaking back into `PlayerActivity`.
 
-- Switched to NOVA's published `manifest.xml` release asset and exact project SHAs.
-- dev.4 stopped immediately because it incorrectly required the manifest's resolved `AVP` project SHA to match the release-page/tag commit.
+### v0.2.0-dev.9 — configuration/authentication boundary
 
-## v0.2.0-dev.5 — corrected provenance model
-
-No intended Scrob behavior change.
-
-- Use the v6.4.72 release manifest as the authoritative immutable multi-repository lock.
-- Require full 40-character SHA revisions for every project.
-- Materialize each project at exactly the manifest revision.
-- Verify the untouched Video source declares `versionName='6.4.72'` before patching.
-- Publish the release manifest, resolved-project summary, and SHA-256 checksum beside the APK.
-- Keep the final APK `versionName=6.4.72` guard.
-
-## v0.2.0-dev.7 — PlayerService-owned playback position
-
-- dev.5 successfully resolved and patched the exact v6.4.72 release source, then reached Java compilation.
-- Adapt Scrob progress capture to NOVA 6.4.72's `PlayerService.PlaybackSnapshot` API after upstream removed `PlayerActivity.mLastPosition`.
-- Keep event semantics unchanged while aligning with upstream's service-owned runtime position model.
-
-## v0.2.0-dev.8 — player-boundary verifier correction
-
-- dev.7 preflight stopped before patch application because its leak detector blacklisted `PlayerService.sPlayerService.getPlaybackSnapshot()`, an API NOVA 6.4.72 already uses natively inside `PlayerActivity`.
-- Narrow boundary verification to Scrob-specific implementation symbols and require the intended seven bridge references.
-- Keep the dev.7 bridge architecture and runtime behavior unchanged.
+- Add `ScrobConfig`, `ScrobCredentials`, `ScrobConnection`, and `ScrobAuthManager`.
+- Preserve `scrob_url`, `scrob_api_key`, and `scrob_enabled` exactly for upgrade compatibility.
+- Keep API key as the sole supported auth mechanism while making auth method extensible.
+- Make transport consume `ScrobConnection` rather than directly reading credential/config preferences.
+- Keep the existing settings UI on a compatibility facade for this first refactor step.
+- Redact API keys from error-facing endpoint text.
+- Add static/CI guards for the new boundary.
 
 ## Next 0.2.x steps
 
-1. Adapt only patch anchors that the real v6.4.72 source changed, if preflight identifies any.
-2. Reduce Scrob-owned logic injected directly into `PlayerActivity`.
-3. Add explicit patch-surface reporting/tests for future NOVA rebases.
-4. Close 0.2.x after install/update testing confirms playback events still reach Scrob correctly.
+### v0.2.0-dev.10
 
-Feature expansion remains deferred until this maintenance layer is stable.
+Move the preferences UI onto `ScrobConfig` / `ScrobAuthManager` / `ScrobConnection` and remove direct settings-facing compatibility reads from `Scrob`.
 
-- Keep playback-specific Scrob state and timers outside upstream `PlayerActivity`; use `ScrobPlaybackBridge` as the integration boundary.
+### v0.2.0-dev.11
+
+Improve explicit connection-state/diagnostic classification without exposing credentials:
+
+```text
+Unconfigured
+Configured
+Testing
+Connected
+Authentication failed
+Server unreachable
+Server/API incompatible
+```
+
+### Later
+
+- Verify which alternate authentication/provisioning mechanisms Scrob actually supports before implementing any.
+- Add lifecycle-focused tests around webhook event semantics.
+- Continue reducing fork-specific patch surface.
+- Prepare an upstream-friendly feature patch containing the optional Scrob integration, not NOVA Scrob branding/package/build infrastructure.
+
+Feature expansion remains secondary to maintaining the proven playback behavior.
