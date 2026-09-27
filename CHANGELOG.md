@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.2.0-dev.8
+
+- Fix the dev.7 preflight false positive caused by treating NOVA 6.4.72's own `PlayerService.sPlayerService.getPlaybackSnapshot()` call inside `PlayerActivity` as Scrob implementation leakage.
+- Narrow the player-boundary verifier to Scrob-specific implementation details only (`Scrob` transport imports/calls, Scrob timer fields, and progress interval state).
+- Add an explicit patch-surface count requiring exactly seven `mScrobPlayback` references: the bridge field plus play, pause, completion, Back, finish, and destroy hooks.
+- No runtime Scrob behavior or upstream source selection changes from dev.7.
+
 ## v0.2.0-dev.7
 
 - Extract Scrob playback lifecycle, 60-second progress scheduling, duplicate-stop suppression, and playback-position calculation from NOVA `PlayerActivity` into `ScrobPlaybackBridge`.

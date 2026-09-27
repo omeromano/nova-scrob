@@ -29,17 +29,31 @@ def verify(ctx):
         if needle not in pa:
             raise RuntimeError("Player Scrob bridge integration missing: " + needle)
 
+    # Guard the Scrob-owned boundary, not generic NOVA player APIs.
+    # NOVA 6.4.72 itself calls PlayerService.getPlaybackSnapshot() inside
+    # PlayerActivity (for external-player result reporting), so generic
+    # PlayerService/snapshot strings must never be treated as Scrob leakage.
     forbidden_player_internals = (
+        "import com.archos.mediacenter.utils.scrob.Scrob;",
         "mScrobHandler",
         "mScrobProgress",
         "private void scrobPlayback(",
-        "PlayerService.sPlayerService.getPlaybackSnapshot()",
         "Scrob.postPlaybackAsync(",
-        "mLastPosition",
+        "PROGRESS_INTERVAL_MS",
     )
     for needle in forbidden_player_internals:
         if needle in pa:
             raise RuntimeError("Scrob implementation detail leaked into PlayerActivity: " + needle)
+
+    # The activity should expose only the deliberately small bridge surface.
+    # Seven references are expected: the bridge field plus play, pause,
+    # completion, Back, finish, and destroy hooks.
+    if pa.count("mScrobPlayback") != 7:
+        raise RuntimeError(
+            "Unexpected ScrobPlaybackBridge patch surface in PlayerActivity: "
+            + str(pa.count("mScrobPlayback"))
+            + " mScrobPlayback references (expected 7)"
+        )
 
     bridge = ctx.result_text(
         "Video/src/main/java/com/archos/mediacenter/video/scrob/ScrobPlaybackBridge.java"

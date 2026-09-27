@@ -1,4 +1,4 @@
-# NOVA Scrob v0.2.0-dev.7
+# NOVA Scrob v0.2.0-dev.8
 
 Minimal NOVA Video Player fork for direct playback tracking to a self-hosted Scrob instance.
 
@@ -6,7 +6,7 @@ Minimal NOVA Video Player fork for direct playback tracking to a self-hosted Scr
 
 The 0.2.x line is focused on maintainability: keep the working v0.1.7 playback behavior while making the Scrob patch easier to inspect, test, and carry forward when NOVA releases a new version.
 
-v0.2.0-dev.7 keeps the resolved release-manifest source strategy and moves Scrob playback state/timer/dispatch logic behind `ScrobPlaybackBridge`. `PlayerActivity` now contains only shallow lifecycle hooks, while the bridge follows NOVA 6.4.72's service-owned playback-position model. The release manifest remains the immutable multi-repository lock.
+v0.2.0-dev.8 keeps the dev.7 `ScrobPlaybackBridge` refactor and fixes its compatibility verifier so it distinguishes Scrob-owned implementation from NOVA 6.4.72's own `PlayerService` snapshot usage inside `PlayerActivity`. Runtime playback behavior is unchanged. The release manifest remains the immutable multi-repository lock.
 
 ## Upstream source and locking
 
@@ -59,9 +59,9 @@ python3 scripts/apply_nova_scrob.py nova-src
 ```
 
 
-### v0.2.0-dev.7 compatibility note
+### v0.2.0-dev.8 compatibility note
 
-NOVA 6.4.72 moved runtime playback-position ownership into `PlayerService`. Scrob therefore reads position/duration from `PlayerService.PlaybackSnapshot`, with the live `Player` only as a fallback when the service is unavailable.
+NOVA 6.4.72 moved runtime playback-position ownership into `PlayerService`. Scrob therefore reads position/duration from `PlayerService.PlaybackSnapshot`, with the live `Player` only as a fallback when the service is unavailable. NOVA itself also uses `getPlaybackSnapshot()` inside `PlayerActivity`; dev.8 therefore verifies only Scrob-specific leakage rather than blacklisting that generic upstream API.
 
 ### 0.2.x player integration boundary
 

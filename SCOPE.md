@@ -38,6 +38,12 @@ No intended Scrob behavior change.
 - Adapt Scrob progress capture to NOVA 6.4.72's `PlayerService.PlaybackSnapshot` API after upstream removed `PlayerActivity.mLastPosition`.
 - Keep event semantics unchanged while aligning with upstream's service-owned runtime position model.
 
+## v0.2.0-dev.8 — player-boundary verifier correction
+
+- dev.7 preflight stopped before patch application because its leak detector blacklisted `PlayerService.sPlayerService.getPlaybackSnapshot()`, an API NOVA 6.4.72 already uses natively inside `PlayerActivity`.
+- Narrow boundary verification to Scrob-specific implementation symbols and require the intended seven bridge references.
+- Keep the dev.7 bridge architecture and runtime behavior unchanged.
+
 ## Next 0.2.x steps
 
 1. Adapt only patch anchors that the real v6.4.72 source changed, if preflight identifies any.
