@@ -26,12 +26,13 @@ class FakeContext:
     def __init__(self, player_activity):
         self.values = {
             "APP_ID": "org.courville.novascrob",
-            "APP_VERSION": "0.2.0-dev.14",
+            "APP_VERSION": "0.2.0-dev.15",
             "NOVA_BASE_VERSION": "6.4.72",
         }
         self.text = {
             "Video/build.gradle": 'applicationId = "org.courville.novascrob"\n',
             "Video/AndroidManifest.xml": 'android:label="NOVA Scrob" android:icon="@mipmap/nova_scrob_icon"',
+            "Video/res/xml/preferences_video.xml": 'scrob_enabled scrob_login scrob_diagnostics',
             "Video/src/main/java/com/archos/mediacenter/video/player/PlayerActivity.java": player_activity,
             "Video/src/main/java/com/archos/mediacenter/video/scrob/ScrobPlaybackBridge.java": "\n".join((
                 "public final class ScrobPlaybackBridge",
@@ -42,7 +43,7 @@ class FakeContext:
                 "Scrob.postPlaybackAsync(context, videoInfo, progress, method, ended);",
             )),
             "Video/src/main/java/com/archos/mediacenter/video/scrob/ScrobDiagnosticsPreference.java": (
-                'NOVA Scrob: v0.2.0-dev.14\\nBase NOVA: v6.4.72\\n\\n'
+                'NOVA Scrob: v0.2.0-dev.15\\nBase NOVA: v6.4.72\\n\\n'
             ),
             "Video/src/main/java/com/archos/mediacenter/video/scrob/ScrobLoginPreference.java": (
                 SCRIPT_DIR
@@ -81,6 +82,7 @@ def player_activity(extra=""):
     # upstream player logic and must not be classified as Scrob leakage.
     return "\n".join((
         "private final com.archos.mediacenter.video.scrob.ScrobPlaybackBridge mScrobPlayback = new com.archos.mediacenter.video.scrob.ScrobPlaybackBridge(this);",
+        "R.id.scrob_back_menu",
         "backMenuItem.setOnMenuItemClickListener(new MenuItem.OnMenuItemClickListener() {",
         "mScrobPlayback.onStop(mVideoInfo, mPlayer, false);",  # Back listener
         "mScrobPlayback.onPlay(mVideoInfo, mPlayer);",

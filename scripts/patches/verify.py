@@ -1,81 +1,11 @@
 import re
 
 
-def verify(ctx):
-    app_id = ctx.values["APP_ID"]
-    build = ctx.result_text("Video/build.gradle")
-    active_ids = re.findall(
-        r'(?m)^\s*applicationId\s*(?:=\s*)?[\"\']([^\"\']+)[\"\']\s*$',
-        build,
-    )
-    if active_ids != [app_id]:
-        raise RuntimeError(f"Unexpected active applicationId(s): {active_ids}")
-
-    manifest = ctx.result_text("Video/AndroidManifest.xml")
-    if "NOVA Scrob" not in manifest or "@mipmap/nova_scrob_icon" not in manifest:
-        raise RuntimeError("Branding did not apply to Video/AndroidManifest.xml")
-
-    pa = ctx.result_text("Video/src/main/java/com/archos/mediacenter/video/player/PlayerActivity.java")
-    required_player_hooks = (
-        "private final com.archos.mediacenter.video.scrob.ScrobPlaybackBridge mScrobPlayback = new com.archos.mediacenter.video.scrob.ScrobPlaybackBridge(this);",
-        "backMenuItem.setOnMenuItemClickListener(new MenuItem.OnMenuItemClickListener() {",
-        "mScrobPlayback.onPlay(mVideoInfo, mPlayer);",
-        "mScrobPlayback.onPause(mVideoInfo, mPlayer);",
-        "mScrobPlayback.onStop(mVideoInfo, mPlayer, true);",
-        "mScrobPlayback.onStop(mVideoInfo, mPlayer, false);",
-        "mScrobPlayback.release();",
-    )
-    for needle in required_player_hooks:
-        if needle not in pa:
-            raise RuntimeError("Player Scrob bridge integration missing: " + needle)
-
-    # Guard the Scrob-owned boundary, not generic NOVA player APIs.
-    # NOVA 6.4.72 itself calls PlayerService.getPlaybackSnapshot() inside
-    # PlayerActivity (for external-player result reporting), so generic
-    # PlayerService/snapshot strings must never be treated as Scrob leakage.
-    forbidden_player_internals = (
-        "import com.archos.mediacenter.utils.scrob.Scrob;",
-        "import com.archos.mediacenter.video.scrob.ScrobPlaybackBridge;",
-        "MENU_BACK_ID",
-        "if (item.getItemId() == R.id.scrob_back_menu) {",
-        "mScrobHandler",
-        "mScrobProgress",
-        "private void scrobPlayback(",
-        "Scrob.postPlaybackAsync(",
-        "PROGRESS_INTERVAL_MS",
-    )
-    for needle in forbidden_player_internals:
-        if needle in pa:
-            raise RuntimeError("Scrob implementation detail leaked into PlayerActivity: " + needle)
-
-    # The activity should expose only the deliberately small bridge surface.
-    # Seven references are expected: the bridge field plus play, pause,
-    # completion, Back, finish, and destroy hooks.
-    if pa.count("mScrobPlayback") != 7:
-        raise RuntimeError(
-            "Unexpected ScrobPlaybackBridge patch surface in PlayerActivity: "
-            + str(pa.count("mScrobPlayback"))
-            + " mScrobPlayback references (expected 7)"
-        )
-
-    bridge = ctx.result_text(
-        "Video/src/main/java/com/archos/mediacenter/video/scrob/ScrobPlaybackBridge.java"
-    )
-    required_bridge = (
-        "public final class ScrobPlaybackBridge",
-        "private static final long PROGRESS_INTERVAL_MS = 60000L;",
-        "PlayerService.sPlayerService.getPlaybackSnapshot()",
-        "snapshot.getPositionMs()",
-        "duplicate stop suppressed",
-        "Scrob.postPlaybackAsync(context, videoInfo, progress, method, ended);",
-    )
-    for needle in required_bridge:
-        if needle not in bridge:
-            raise RuntimeError("Scrob playback bridge implementation missing: " + needle)
+PLAYER = "Video/src/main/java/com/archos/mediacenter/video/player/PlayerActivity.java"
+PREFERENCES = "Video/res/xml/preferences_video.xml"
 
 
-    # dev.10 auth/config boundary: legacy preference keys remain stable; transport
-    # and the settings UI resolve configuration through dedicated abstractions.
+def _verify_auth_config(ctx):
     config = ctx.result_text(
         "MediaLib/src/com/archos/mediacenter/utils/scrob/ScrobConfig.java"
     )
@@ -166,7 +96,6 @@ def verify(ctx):
         if stale_transport_method in scrob:
             raise RuntimeError("Scrob transport still exposes settings compatibility method: " + stale_transport_method)
 
-
     if "return config.isEnabledSetting() && isConfigured();" not in connection:
         raise RuntimeError("Connection reachability state unexpectedly gates playback enablement")
     if "getState() == ScrobConnectionState.CONNECTED" in connection:
@@ -175,6 +104,122 @@ def verify(ctx):
         raise RuntimeError("Diagnostics do not expose the credential-safe connection-state model")
     if "apiKeyValue()" in login:
         raise RuntimeError("Settings UI gained raw credential-object access")
+
+
+def _verify_player(ctx, *, expect_fork_back):
+    pa = ctx.result_text(PLAYER)
+    required_player_hooks = (
+        "private final com.archos.mediacenter.video.scrob.ScrobPlaybackBridge mScrobPlayback = new com.archos.mediacenter.video.scrob.ScrobPlaybackBridge(this);",
+        "mScrobPlayback.onPlay(mVideoInfo, mPlayer);",
+        "mScrobPlayback.onPause(mVideoInfo, mPlayer);",
+        "mScrobPlayback.onStop(mVideoInfo, mPlayer, true);",
+        "mScrobPlayback.onStop(mVideoInfo, mPlayer, false);",
+        "mScrobPlayback.release();",
+    )
+    for needle in required_player_hooks:
+        if needle not in pa:
+            raise RuntimeError("Player Scrob bridge integration missing: " + needle)
+
+    forbidden_player_internals = (
+        "import com.archos.mediacenter.utils.scrob.Scrob;",
+        "import com.archos.mediacenter.video.scrob.ScrobPlaybackBridge;",
+        "MENU_BACK_ID",
+        "if (item.getItemId() == R.id.scrob_back_menu) {",
+        "mScrobHandler",
+        "mScrobProgress",
+        "private void scrobPlayback(",
+        "Scrob.postPlaybackAsync(",
+        "PROGRESS_INTERVAL_MS",
+    )
+    for needle in forbidden_player_internals:
+        if needle in pa:
+            raise RuntimeError("Scrob implementation detail leaked into PlayerActivity: " + needle)
+
+    bridge = ctx.result_text(
+        "Video/src/main/java/com/archos/mediacenter/video/scrob/ScrobPlaybackBridge.java"
+    )
+    required_bridge = (
+        "public final class ScrobPlaybackBridge",
+        "private static final long PROGRESS_INTERVAL_MS = 60000L;",
+        "PlayerService.sPlayerService.getPlaybackSnapshot()",
+        "snapshot.getPositionMs()",
+        "duplicate stop suppressed",
+        "Scrob.postPlaybackAsync(context, videoInfo, progress, method, ended);",
+    )
+    for needle in required_bridge:
+        if needle not in bridge:
+            raise RuntimeError("Scrob playback bridge implementation missing: " + needle)
+
+    if expect_fork_back:
+        if "backMenuItem.setOnMenuItemClickListener(new MenuItem.OnMenuItemClickListener() {" not in pa:
+            raise RuntimeError("NOVA Scrob fork Back listener is missing")
+        if "R.id.scrob_back_menu" not in pa:
+            raise RuntimeError("NOVA Scrob fork Back resource is missing")
+        expected_refs = 7
+    else:
+        if "R.id.scrob_back_menu" in pa or "backMenuItem.setOnMenuItemClickListener" in pa:
+            raise RuntimeError("Fork-only Back UX leaked into portable Scrob feature patch")
+        expected_refs = 6
+
+    if pa.count("mScrobPlayback") != expected_refs:
+        raise RuntimeError(
+            "Unexpected ScrobPlaybackBridge patch surface in PlayerActivity: "
+            + str(pa.count("mScrobPlayback"))
+            + f" mScrobPlayback references (expected {expected_refs})"
+        )
+
+
+def _verify_preferences(ctx, *, expect_fork_diagnostics):
+    prefs = ctx.result_text(PREFERENCES)
+    for needle in ("scrob_enabled", "scrob_login"):
+        if needle not in prefs:
+            raise RuntimeError("Portable Scrob setting missing: " + needle)
+    if expect_fork_diagnostics:
+        if "scrob_diagnostics" not in prefs:
+            raise RuntimeError("NOVA Scrob fork diagnostics preference missing")
+    elif "scrob_diagnostics" in prefs:
+        raise RuntimeError("Fork-only diagnostics UI leaked into portable Scrob feature patch")
+
+
+def verify_feature(ctx):
+    """Verify the upstream-oriented Scrob feature without fork packaging/UX."""
+    build = ctx.result_text("Video/build.gradle")
+    active_ids = re.findall(
+        r'(?m)^\s*applicationId\s*(?:=\s*)?[\"\']([^\"\']+)[\"\']\s*$',
+        build,
+    )
+    if active_ids != ["org.courville.nova"]:
+        raise RuntimeError(
+            "Portable feature preflight unexpectedly changed upstream applicationId: "
+            + str(active_ids)
+        )
+    manifest = ctx.result_text("Video/AndroidManifest.xml")
+    if "NOVA Scrob" in manifest or "@mipmap/nova_scrob_icon" in manifest:
+        raise RuntimeError("Fork branding leaked into portable Scrob feature patch")
+
+    _verify_player(ctx, expect_fork_back=False)
+    _verify_auth_config(ctx)
+    _verify_preferences(ctx, expect_fork_diagnostics=False)
+
+
+def verify_fork(ctx):
+    """Verify the complete NOVA Scrob fork overlay plus portable Scrob feature."""
+    app_id = ctx.values["APP_ID"]
+    build = ctx.result_text("Video/build.gradle")
+    active_ids = re.findall(
+        r'(?m)^\s*applicationId\s*(?:=\s*)?[\"\']([^\"\']+)[\"\']\s*$',
+        build,
+    )
+    if active_ids != [app_id]:
+        raise RuntimeError(f"Unexpected active applicationId(s): {active_ids}")
+
+    manifest = ctx.result_text("Video/AndroidManifest.xml")
+    if "NOVA Scrob" not in manifest or "@mipmap/nova_scrob_icon" not in manifest:
+        raise RuntimeError("Branding did not apply to Video/AndroidManifest.xml")
+
+    _verify_player(ctx, expect_fork_back=True)
+    _verify_auth_config(ctx)
+    _verify_preferences(ctx, expect_fork_diagnostics=True)
 
     diagnostics = ctx.result_text(
         "Video/src/main/java/com/archos/mediacenter/video/scrob/ScrobDiagnosticsPreference.java"
@@ -185,3 +230,8 @@ def verify(ctx):
     )
     if expected_header not in diagnostics:
         raise RuntimeError("Diagnostics version header did not render from nova-scrob.properties")
+
+
+# Backward-compatible name for existing tests/callers: complete fork verification.
+def verify(ctx):
+    verify_fork(ctx)

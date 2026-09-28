@@ -2,29 +2,17 @@ PLAYER = "Video/src/main/java/com/archos/mediacenter/video/player/PlayerActivity
 
 
 def apply(ctx):
+    """Apply only the portable Scrob playback lifecycle seam.
+
+    Fork-only player UX (currently the custom ActionBar Back item) deliberately
+    lives in patches/fork_ui.py so the upstream feature can be preflighted on
+    its own.
+    """
     ctx.replace_once(
         PLAYER,
         "    private VideoDbInfo mVideoInfo;",
         "    private VideoDbInfo mVideoInfo;\n    private final com.archos.mediacenter.video.scrob.ScrobPlaybackBridge mScrobPlayback = new com.archos.mediacenter.video.scrob.ScrobPlaybackBridge(this);",
         label="PlayerActivity Scrob bridge",
-    )
-    ctx.replace_once(
-        PLAYER,
-        "            mInfoMenuItem = menu.add(MENU_FILE_ACTIONS_GROUP, MENU_INFO_ID, Menu.NONE, R.string.menu_info);",
-        '''            MenuItem backMenuItem = menu.add(MENU_FILE_ACTIONS_GROUP, R.id.scrob_back_menu, Menu.NONE, "Back");
-            if (backMenuItem != null) {
-                backMenuItem.setIcon(R.drawable.ic_nova_scrob_back).setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS);
-                backMenuItem.setOnMenuItemClickListener(new MenuItem.OnMenuItemClickListener() {
-                    @Override
-                    public boolean onMenuItemClick(MenuItem item) {
-                        mScrobPlayback.onStop(mVideoInfo, mPlayer, false);
-                        getOnBackPressedDispatcher().onBackPressed();
-                        return true;
-                    }
-                });
-            }
-            mInfoMenuItem = menu.add(MENU_FILE_ACTIONS_GROUP, MENU_INFO_ID, Menu.NONE, R.string.menu_info);''',
-        label="PlayerActivity ActionBar Back item",
     )
     ctx.replace_once(
         PLAYER,
@@ -66,5 +54,3 @@ def apply(ctx):
         label="PlayerActivity onDestroy cleanup",
     )
     ctx.install_template("Video/src/main/java/com/archos/mediacenter/video/scrob/ScrobPlaybackBridge.java")
-    ctx.install_template("Video/res/drawable/ic_nova_scrob_back.xml")
-    ctx.install_template("Video/res/values/scrob_ids.xml")

@@ -1,4 +1,4 @@
-# NOVA Scrob v0.2.0-dev.14
+# NOVA Scrob v0.2.0-dev.15
 
 Minimal NOVA Video Player fork for direct playback tracking to a self-hosted Scrob instance.
 
@@ -6,7 +6,7 @@ Minimal NOVA Video Player fork for direct playback tracking to a self-hosted Scr
 
 The 0.2.x line is focused on maintainability: preserve the playback behavior proven in v0.1.7/dev.8 while making the Scrob integration easier to inspect, test, rebase, and eventually present upstream as an optional feature.
 
-`v0.2.0-dev.14` continues the measured patch-surface reduction from dev.13. `PlayerActivity` now requires seven anchored edits instead of eight by attaching the custom Back behavior directly to the Back menu item when it is created, eliminating the separate `onOptionsItemSelected()` patch while preserving the same stop-then-Back behavior.
+`v0.2.0-dev.15` separates the upstream-oriented Scrob feature from NOVA-Scrob-fork-only overlays. The complete APK still uses seven `PlayerActivity` anchors and behaves like validated dev.14, but the portable Scrob feature can now be preflighted independently with only six lifecycle anchors; the seventh anchor is explicitly isolated as the fork-only custom Back-button UX.
 
 ## Connection state model
 
@@ -126,7 +126,7 @@ The source-resolution path uses the official release `manifest.xml` as the immut
 
 ## Player integration boundary
 
-`PlayerActivity` delegates Scrob lifecycle behavior to `ScrobPlaybackBridge`. The bridge owns periodic progress scheduling, duplicate-stop suppression, NOVA 6.4.72 `PlayerService.PlaybackSnapshot` position capture, the live-player fallback, and webhook dispatch. dev.14 keeps all seven bridge references (field plus play, pause, completion, Back, finish, and destroy) while reducing the patcher to seven PlayerActivity anchors. The Back icon and its stop/back behavior are installed together at menu creation time, so `onOptionsItemSelected()` no longer needs a Scrob-specific edit.
+`PlayerActivity` delegates Scrob lifecycle behavior to `ScrobPlaybackBridge`. The bridge owns periodic progress scheduling, duplicate-stop suppression, NOVA 6.4.72 `PlayerService.PlaybackSnapshot` position capture, the live-player fallback, and webhook dispatch. In dev.15 the portable feature owns six anchors: bridge initialization plus play, pause, completion, finish, and destroy. The seventh full-fork anchor is the custom ActionBar Back item and now lives in `patches/fork_ui.py`, separate from the upstream-oriented player feature.
 
 ## Patch and CI checks
 
@@ -137,6 +137,7 @@ python3 scripts/tests/test_verify_player_boundary.py
 python3 scripts/tests/test_scrob_auth_architecture.py
 python3 scripts/tests/test_scrob_transport_failure_contract.py
 python3 scripts/tests/test_patch_surface_contract.py
+python3 scripts/tests/test_upstream_feature_boundary.py
 ```
 
 Run the executable playback lifecycle regression harness with Java 17:
@@ -147,13 +148,21 @@ bash scripts/tests/run_playback_lifecycle_tests.sh
 
 The lifecycle harness compiles the real `ScrobPlaybackBridge.java` template against deterministic test stubs and exercises play, 60-second progress, pause/stop, duplicate-stop suppression, playback-snapshot/live-player fallback, missing playback state, disabled tracking, and release cleanup. It introduces no runtime/test dependency into the Android app.
 
-Run a non-destructive patch preflight against a resolved NOVA tree with:
+Run the upstream-oriented feature preflight independently with:
+
+```bash
+python3 scripts/apply_nova_scrob.py --check --feature-only --surface-report dist/UPSTREAM_FEATURE_SURFACE.md nova-src
+```
+
+This path excludes NOVA Scrob package identity/branding, fork diagnostics UI, and the custom Back-button UX. CI requires exactly six portable `PlayerActivity` anchors and zero fork-overlay operations.
+
+Then preflight the complete fork with:
 
 ```bash
 python3 scripts/apply_nova_scrob.py --check --surface-report dist/PATCH_SURFACE.md nova-src
 ```
 
-The optional surface report records the exact upstream-owned files touched by the resolved NOVA release, the number of anchored replacements, the PlayerActivity anchor count, and the standalone Scrob additions. CI publishes `PATCH_SURFACE.md` beside the APK and upstream lock.
+The complete fork remains seven `PlayerActivity` anchors. CI publishes both `UPSTREAM_FEATURE_SURFACE.md` and `PATCH_SURFACE.md` beside the APK and upstream lock.
 
 Apply the patch with:
 
@@ -165,4 +174,4 @@ GitHub Actions performs the authoritative source resolution, preflight, Gradle b
 
 ## Next build
 
-After dev.14 validates, review the six remaining lifecycle/bridge anchors plus the single Back-menu anchor before attempting another reduction. Do not force the count lower if doing so would make event timing less explicit or harder to review; the priority remains a small, stable upstream seam with unchanged lifecycle behavior.
+After dev.15 validates, dev.16 should be release hardening rather than another forced patch-count reduction: freeze the architecture, verify upgrade/install behavior and real playback tracking, clean warnings we own, and prepare the release/RC documentation. The six-anchor portable feature seam should only be reduced further if an obviously safer upstream lifecycle hook is discovered.

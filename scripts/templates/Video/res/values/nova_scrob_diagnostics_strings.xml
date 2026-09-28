@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+<string name="scrob_diagnostics_title">NOVA Scrob diagnostics</string>
+<string name="scrob_diagnostics_summary">v{{APP_VERSION}} · Base NOVA v{{NOVA_BASE_VERSION}} · last webhook status</string>
+</resources>

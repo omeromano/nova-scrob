@@ -1,5 +1,18 @@
 # Changelog
 
+## v0.2.0-dev.15
+
+### Separate the portable Scrob feature from NOVA Scrob fork overlays
+
+- Add a `--feature-only` patch/preflight mode that applies the Scrob transport, auth/configuration, settings login, playback bridge, and six core `PlayerActivity` lifecycle anchors without changing NOVA package identity or branding.
+- Move the custom ActionBar Back patch and its resources into `patches/fork_ui.py`; it is now explicitly a fork-only UX overlay rather than part of the upstream-oriented Scrob feature.
+- Keep the complete NOVA Scrob build at seven `PlayerActivity` anchors and preserve the dev.14 Back sequence and full PlayerActivity transformation exactly.
+- Split generic Scrob preference strings from NOVA-Scrob-specific diagnostics strings and omit the fork diagnostics preference in feature-only mode.
+- Split verification into `verify_feature` and `verify_fork`, with guards preventing package branding, fork diagnostics, or custom Back UX from leaking into the portable feature profile.
+- Add `test_upstream_feature_boundary.py` and strengthen the patch-surface contract to require six portable PlayerActivity anchors plus one fork-only Back anchor.
+- Preflight both profiles against the exact locked NOVA v6.4.72 tree in CI and publish `UPSTREAM_FEATURE_SURFACE.md` alongside the complete `PATCH_SURFACE.md`.
+- No intentional change to playback lifecycle semantics, webhook payloads, 60-second progress cadence, duplicate-stop suppression, authentication/configuration behavior, saved preference keys, or source locking.
+
 ## v0.2.0-dev.14
 
 ### Consolidate Back integration to seven PlayerActivity anchors

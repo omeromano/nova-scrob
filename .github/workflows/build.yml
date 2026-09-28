@@ -49,6 +49,7 @@ jobs:
           python3 scripts/tests/test_scrob_auth_architecture.py
           python3 scripts/tests/test_scrob_transport_failure_contract.py
           python3 scripts/tests/test_patch_surface_contract.py
+          python3 scripts/tests/test_upstream_feature_boundary.py
 
       - name: Set up Java 17
         uses: actions/setup-java@v5
@@ -85,11 +86,22 @@ jobs:
             echo "- Full immutable manifest: \`UPSTREAM_LOCK.xml\` build artifact"
           } >> "$GITHUB_STEP_SUMMARY"
 
-      - name: Preflight resolved NOVA source
+      - name: Preflight portable Scrob feature
+        shell: bash
+        run: |
+          set -euxo pipefail
+          python3 scripts/apply_nova_scrob.py --check --feature-only --surface-report dist/UPSTREAM_FEATURE_SURFACE.md nova-src
+          grep -F 'Mode: **portable Scrob feature only**' dist/UPSTREAM_FEATURE_SURFACE.md
+          grep -F '`PlayerActivity.java` anchor replacements: **6**' dist/UPSTREAM_FEATURE_SURFACE.md
+          grep -F 'Fork-overlay operations: **0**' dist/UPSTREAM_FEATURE_SURFACE.md
+          cat dist/UPSTREAM_FEATURE_SURFACE.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Preflight complete NOVA Scrob fork
         shell: bash
         run: |
           set -euxo pipefail
           python3 scripts/apply_nova_scrob.py --check --surface-report dist/PATCH_SURFACE.md nova-src
+          grep -F 'Mode: **complete NOVA Scrob fork**' dist/PATCH_SURFACE.md
           grep -F '`PlayerActivity.java` anchor replacements: **7**' dist/PATCH_SURFACE.md
           cat dist/PATCH_SURFACE.md >> "$GITHUB_STEP_SUMMARY"
 
@@ -207,6 +219,7 @@ jobs:
             dist/UPSTREAM_LOCK.txt
             dist/UPSTREAM_LOCK.sha256
             dist/PATCH_SURFACE.md
+            dist/UPSTREAM_FEATURE_SURFACE.md
           if-no-files-found: error
 
       - name: Publish GitHub Release
@@ -221,6 +234,7 @@ jobs:
             dist/UPSTREAM_LOCK.txt
             dist/UPSTREAM_LOCK.sha256
             dist/PATCH_SURFACE.md
+            dist/UPSTREAM_FEATURE_SURFACE.md
           generate_release_notes: true
 
       - name: Upload diagnostics on failure
@@ -233,6 +247,7 @@ jobs:
             dist/UPSTREAM_LOCK.txt
             dist/UPSTREAM_LOCK.sha256
             dist/PATCH_SURFACE.md
+            dist/UPSTREAM_FEATURE_SURFACE.md
             nova-src/Video/build/reports/**
             nova-src/Video/build/outputs/logs/**
             nova-src/Video/build.gradle

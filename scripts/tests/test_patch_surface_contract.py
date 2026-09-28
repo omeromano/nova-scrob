@@ -3,6 +3,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 PLAYER_PATCH = ROOT / "scripts" / "patches" / "player.py"
+FORK_UI_PATCH = ROOT / "scripts" / "patches" / "fork_ui.py"
 PLAYER_VERIFY = ROOT / "scripts" / "patches" / "verify.py"
 IDS = ROOT / "scripts" / "templates" / "Video" / "res" / "values" / "scrob_ids.xml"
 
@@ -19,35 +20,38 @@ def forbid(text, needle, label):
 
 def main():
     player = PLAYER_PATCH.read_text(encoding="utf-8")
+    fork_ui = FORK_UI_PATCH.read_text(encoding="utf-8")
     verify = PLAYER_VERIFY.read_text(encoding="utf-8")
     ids = IDS.read_text(encoding="utf-8")
 
-    # dev.12 patched ten distinct PlayerActivity anchors. dev.13 reduced that
-    # to eight. dev.14 folds the custom Back handling into the Back menu item's
-    # own click listener, removing the separate onOptionsItemSelected anchor.
-    count = player.count("ctx.replace_once(")
-    if count != 7:
-        raise AssertionError(f"PlayerActivity patch surface changed: {count} anchors (expected 7)")
+    # dev.15 separates the upstream-oriented playback feature from fork-only UX.
+    # The installed fork still has seven PlayerActivity anchors, but the portable
+    # feature itself now owns only six; the seventh lives in fork_ui.py.
+    feature_count = player.count("ctx.replace_once(")
+    fork_count = fork_ui.count("ctx.replace_once(")
+    if feature_count != 6:
+        raise AssertionError(
+            f"Portable PlayerActivity patch surface changed: {feature_count} anchors (expected 6)"
+        )
+    if fork_count != 1:
+        raise AssertionError(
+            f"Fork-only PlayerActivity patch surface changed: {fork_count} anchors (expected 1)"
+        )
 
-    forbid(player, "PlayerActivity VideoDbInfo import", "player patch")
-    forbid(player, "PlayerActivity menu ids", "player patch")
-    forbid(player, "MENU_BACK_ID", "player patch")
+    forbid(player, "R.id.scrob_back_menu", "portable player patch")
+    forbid(player, "backMenuItem", "portable player patch")
     require(player, "com.archos.mediacenter.video.scrob.ScrobPlaybackBridge mScrobPlayback", "fully qualified bridge field")
-    require(player, "R.id.scrob_back_menu", "resource-backed Back menu ID")
-    require(player, "backMenuItem.setOnMenuItemClickListener", "Back menu click listener")
-    forbid(player, 'label="PlayerActivity Back action"', "separate Back handler anchor")
-    forbid(player, "if (item.getItemId() == R.id.scrob_back_menu)", "onOptionsItemSelected Back handler")
-    require(player, 'ctx.install_template("Video/res/values/scrob_ids.xml")', "standalone menu ID resource")
+    require(fork_ui, "R.id.scrob_back_menu", "fork-only Back menu ID")
+    require(fork_ui, "backMenuItem.setOnMenuItemClickListener", "fork-only Back click listener")
+    require(fork_ui, 'ctx.install_template("Video/res/values/scrob_ids.xml")', "fork-only menu ID resource")
     require(ids, '<item type="id" name="scrob_back_menu"/>', "Scrob menu ID resource")
 
-    # The verifier must prevent these two removed upstream edits from creeping
-    # back in during future refactors.
-    require(verify, '"import com.archos.mediacenter.video.scrob.ScrobPlaybackBridge;"', "import boundary guard")
-    require(verify, '"MENU_BACK_ID"', "menu constant boundary guard")
-    require(verify, '"backMenuItem.setOnMenuItemClickListener(new MenuItem.OnMenuItemClickListener() {"', "Back listener verifier")
-    require(verify, '"if (item.getItemId() == R.id.scrob_back_menu) {"', "removed Back handler guard")
+    require(verify, "def verify_feature(ctx):", "portable feature verifier")
+    require(verify, "def verify_fork(ctx):", "complete fork verifier")
+    require(verify, 'raise RuntimeError("Fork-only Back UX leaked into portable Scrob feature patch")', "Back leakage guard")
+    require(verify, 'raise RuntimeError("Fork-only diagnostics UI leaked into portable Scrob feature patch")', "diagnostics leakage guard")
 
-    print("Scrob patch-surface reduction contract passed (PlayerActivity anchors: 10 -> 8 -> 7)")
+    print("Scrob upstream/fork boundary contract passed (portable PlayerActivity anchors: 6; fork-only Back anchor: 1; full fork: 7)")
 
 
 if __name__ == "__main__":

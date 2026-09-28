@@ -72,12 +72,29 @@ Make the Scrob integration cheaper and safer to maintain across upstream NOVA re
 - Extend CI and static contracts to lock the seven-anchor boundary and prevent the removed handler patch from returning.
 - Keep the Scrob bridge, transport, auth/configuration, connection-state model, package identity, and upstream source lock unchanged from dev.13.
 
+
+### v0.2.0-dev.15 — portable feature / fork-overlay separation
+
+- Split the custom ActionBar Back integration out of the portable playback patch into `patches/fork_ui.py`.
+- Keep the complete NOVA Scrob APK at the validated seven `PlayerActivity` anchors while reducing the upstream-oriented feature itself to six lifecycle anchors.
+- Add `--feature-only` patch/preflight mode that excludes package identity/branding, the custom Back UX, and fork-version diagnostics UI.
+- Split generic Scrob preference strings from NOVA-Scrob-specific diagnostics strings so the feature-only patch contains no fork diagnostics branding.
+- Add separate feature/fork verification contracts and publish `UPSTREAM_FEATURE_SURFACE.md` alongside the complete `PATCH_SURFACE.md`.
+- Preserve the complete dev.14 PlayerActivity transformation and full preference XML behavior exactly; no playback/webhook/auth behavior is intentionally changed.
+
 ## Next 0.2.x steps
+
+### v0.2.0-dev.16 — release hardening
+
+- Freeze the 0.2.0 architecture unless a real regression is found.
+- Verify upgrade/install continuity, persisted configuration, connection diagnostics, Back behavior, and real Scrob Continue Watching behavior.
+- Run all source-lock, feature-only, full-fork, lifecycle, auth, and transport checks as release gates.
+- Clean warnings owned by NOVA Scrob and prepare RC/release notes plus an upstream-facing technical summary.
 
 ### Later
 
 - Verify which alternate authentication/provisioning mechanisms Scrob actually supports before implementing any.
-- Continue reducing fork-specific patch surface.
-- Prepare an upstream-friendly feature patch containing the optional Scrob integration, not NOVA Scrob branding/package/build infrastructure.
+- Reduce the six-anchor portable seam only when a clearly safer NOVA lifecycle boundary exists.
+- Use the feature-only patch profile as the basis for an eventual upstream proposal.
 
 Feature expansion remains secondary to maintaining the proven playback behavior.
