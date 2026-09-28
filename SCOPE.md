@@ -82,14 +82,31 @@ Make the Scrob integration cheaper and safer to maintain across upstream NOVA re
 - Add separate feature/fork verification contracts and publish `UPSTREAM_FEATURE_SURFACE.md` alongside the complete `PATCH_SURFACE.md`.
 - Preserve the complete dev.14 PlayerActivity transformation and full preference XML behavior exactly; no playback/webhook/auth behavior is intentionally changed.
 
-## Next 0.2.x steps
-
 ### v0.2.0-dev.16 — release hardening
 
-- Freeze the 0.2.0 architecture unless a real regression is found.
-- Verify upgrade/install continuity, persisted configuration, connection diagnostics, Back behavior, and real Scrob Continue Watching behavior.
-- Run all source-lock, feature-only, full-fork, lifecycle, auth, and transport checks as release gates.
-- Clean warnings owned by NOVA Scrob and prepare RC/release notes plus an upstream-facing technical summary.
+- Freeze the validated dev.15 runtime/patch implementation by hash rather than changing architecture again.
+- Guard package ID, legacy preference keys, and signing-key identity for install-over continuity.
+- Require Git tags to match `APP_VERSION` exactly.
+- Publish release provenance with repository/upstream/APK/signing hashes and patch-surface counts.
+- Add an RC1 real-device validation checklist and release-notes draft.
+- Generate an upstream proposal bundle from the actual portable feature application against locked NOVA source.
+- Update artifact/checkout workflow actions away from the Node-20-deprecated majors.
+- Keep portable/full-fork PlayerActivity surfaces frozen at six/seven anchors.
+
+
+## Next 0.2.x steps
+
+### v0.2.0-rc.1
+
+- Install over the current validated dev build without clearing app data and verify package/signing continuity.
+- Verify saved URL/API key/enabled state, connection diagnostics, outage recovery, Back behavior, and real Scrob Continue Watching/resume behavior on-device.
+- Require the complete CI release evidence set, including release provenance and the generated upstream proposal bundle.
+- Make only narrowly targeted fixes for demonstrated RC regressions; do not reopen architecture by default.
+
+### v0.2.0
+
+- Promote the tested RC when the release checklist is clean.
+- Approach NOVA maintainers with the proposal bundle after the stable fork milestone, then adapt any formal PR to their requested branch/conventions.
 
 ### Later
 

@@ -1,5 +1,8 @@
 .DS_Store
 *.apk
 *.jks
+*.pyc
+__pycache__/
 nova-src/
+nova-feature-src/
 dist/

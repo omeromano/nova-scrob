@@ -1,4 +1,4 @@
-# NOVA Scrob — upstream feature boundary (dev.15)
+# NOVA Scrob — upstream feature boundary (dev.16)
 
 This document describes the portion of NOVA Scrob intended to be portable to official NOVA. It is not a proposal to merge the NOVA Scrob fork itself.
 
@@ -30,3 +30,7 @@ The custom Back button remains in the complete fork because it is useful on the 
 ## Verification
 
 CI preflights the feature-only profile separately against the locked NOVA v6.4.72 release source and requires exactly six `PlayerActivity` anchors with zero fork-overlay operations. The complete fork is then preflighted separately and requires seven anchors. Both profiles share the same lifecycle/auth/transport regression gates.
+
+## dev.16 release-hardening output
+
+The CI pipeline now creates a reviewable upstream proposal bundle from a real `--feature-only` application to the locked v6.4.72 source. The generated patch is checked to exclude `org.courville.novascrob` and `scrob_back_menu`, and is shipped with a generated file/diff summary plus proposal/PR drafts. The portable runtime itself remains unchanged from validated dev.15.

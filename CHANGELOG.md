@@ -1,5 +1,19 @@
 # Changelog
 
+## v0.2.0-dev.16
+
+### Release hardening and upstream proposal bundle
+
+- Freeze the validated dev.15 runtime and patch implementation with SHA-256 release invariants covering Scrob transport/auth/config/player templates plus the portable/fork player patch modules.
+- Freeze upgrade continuity around package `org.courville.novascrob`, legacy preference keys `scrob_url`, `scrob_api_key`, `scrob_enabled`, and the existing signing-key identity.
+- Add CI tag/version enforcement so a pushed release tag must exactly equal `v$APP_VERSION`.
+- Generate release provenance containing repository commit, upstream-lock hash, APK hash, signing-key hash, package identity, NOVA release/base version, and 6/7 portable/full-fork PlayerActivity surface counts.
+- Add an RC validation checklist and draft RC1 release notes for install-over, credential retention, diagnostics, network recovery, lifecycle events, Back behavior, Continue Watching, signing, and artifact verification.
+- Generate an upstream proposal bundle from an actually applied `--feature-only` tree: unified feature patch, patch summary, architecture note, draft maintainer proposal, draft PR description, and feature surface report.
+- Explicitly reject fork package identity and custom Back-button resources from the generated upstream feature patch.
+- Update GitHub artifact actions to Node-24-capable major versions so the release workflow no longer carries the prior Node-20 deprecation warnings.
+- No intentional runtime behavior, webhook lifecycle, authentication/configuration, package identity, signing identity, source-lock, or patch-surface change from validated dev.15.
+
 ## v0.2.0-dev.15
 
 ### Separate the portable Scrob feature from NOVA Scrob fork overlays

@@ -1,4 +1,4 @@
-# NOVA Scrob v0.2.0-dev.15
+# NOVA Scrob v0.2.0-dev.16
 
 Minimal NOVA Video Player fork for direct playback tracking to a self-hosted Scrob instance.
 
@@ -6,7 +6,7 @@ Minimal NOVA Video Player fork for direct playback tracking to a self-hosted Scr
 
 The 0.2.x line is focused on maintainability: preserve the playback behavior proven in v0.1.7/dev.8 while making the Scrob integration easier to inspect, test, rebase, and eventually present upstream as an optional feature.
 
-`v0.2.0-dev.15` separates the upstream-oriented Scrob feature from NOVA-Scrob-fork-only overlays. The complete APK still uses seven `PlayerActivity` anchors and behaves like validated dev.14, but the portable Scrob feature can now be preflighted independently with only six lifecycle anchors; the seventh anchor is explicitly isolated as the fork-only custom Back-button UX.
+`v0.2.0-dev.16` freezes the validated dev.15 runtime architecture and hardens the path to `0.2.0-rc.1`. The complete APK still uses seven `PlayerActivity` anchors while the portable upstream-oriented feature remains six anchors. Release gates now protect package/signing/config continuity, tag/version consistency, artifact provenance, and the dev.15 runtime hashes.
 
 ## Connection state model
 
@@ -138,6 +138,7 @@ python3 scripts/tests/test_scrob_auth_architecture.py
 python3 scripts/tests/test_scrob_transport_failure_contract.py
 python3 scripts/tests/test_patch_surface_contract.py
 python3 scripts/tests/test_upstream_feature_boundary.py
+python3 scripts/tests/test_release_hardening.py
 ```
 
 Run the executable playback lifecycle regression harness with Java 17:
@@ -162,7 +163,7 @@ Then preflight the complete fork with:
 python3 scripts/apply_nova_scrob.py --check --surface-report dist/PATCH_SURFACE.md nova-src
 ```
 
-The complete fork remains seven `PlayerActivity` anchors. CI publishes both `UPSTREAM_FEATURE_SURFACE.md` and `PATCH_SURFACE.md` beside the APK and upstream lock.
+The complete fork remains seven `PlayerActivity` anchors. CI publishes both `UPSTREAM_FEATURE_SURFACE.md` and `PATCH_SURFACE.md` beside the APK and upstream lock. dev.16 also generates an upstream proposal bundle containing a feature-only unified patch, patch summary, architecture note, draft maintainer proposal, and draft PR description.
 
 Apply the patch with:
 
@@ -170,8 +171,8 @@ Apply the patch with:
 python3 scripts/apply_nova_scrob.py nova-src
 ```
 
-GitHub Actions performs the authoritative source resolution, preflight, Gradle build, APK signing, and final package/version verification.
+GitHub Actions performs the authoritative source resolution, preflight, Gradle build, APK signing, and final package/version verification. dev.16 additionally rejects a release tag that does not exactly match `v$APP_VERSION`, records APK/upstream/signing provenance, and publishes the RC validation checklist and proposal bundle as build artifacts.
 
 ## Next build
 
-After dev.15 validates, dev.16 should be release hardening rather than another forced patch-count reduction: freeze the architecture, verify upgrade/install behavior and real playback tracking, clean warnings we own, and prepare the release/RC documentation. The six-anchor portable feature seam should only be reduced further if an obviously safer upstream lifecycle hook is discovered.
+If dev.16 validates in CI, the next build should be `v0.2.0-rc.1`, not another development refactor. RC1 should use `release/RELEASE_CANDIDATE_CHECKLIST.md` for real-device upgrade, credential persistence, diagnostics, playback lifecycle, Back behavior, reconnect, Continue Watching, signing, and artifact validation. Architecture remains frozen unless RC testing demonstrates a real defect.
