@@ -5,11 +5,11 @@ NOVA_BASE_VERSION=6.4.72
 NOVA_MANIFEST=manifest.xml
 SCROB_KODI_REFERENCE=ellite/scrob-kodi@main
 SCROB_BACKEND_REFERENCE=ellite/scrob@main
-LAST_UPSTREAM_REVIEW=2026-09-27
+LAST_UPSTREAM_REVIEW=2026-09-28
 
 ## Source assembly
 
-v0.2.0-dev.13 uses NOVA's resolved `manifest.xml` release asset as the source of truth for the complete upstream tree.
+v0.2.0-dev.14 uses NOVA's resolved `manifest.xml` release asset as the source of truth for the complete upstream tree.
 
 CI downloads:
 

@@ -14,21 +14,17 @@ def apply(ctx):
         '''            MenuItem backMenuItem = menu.add(MENU_FILE_ACTIONS_GROUP, R.id.scrob_back_menu, Menu.NONE, "Back");
             if (backMenuItem != null) {
                 backMenuItem.setIcon(R.drawable.ic_nova_scrob_back).setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS);
+                backMenuItem.setOnMenuItemClickListener(new MenuItem.OnMenuItemClickListener() {
+                    @Override
+                    public boolean onMenuItemClick(MenuItem item) {
+                        mScrobPlayback.onStop(mVideoInfo, mPlayer, false);
+                        getOnBackPressedDispatcher().onBackPressed();
+                        return true;
+                    }
+                });
             }
             mInfoMenuItem = menu.add(MENU_FILE_ACTIONS_GROUP, MENU_INFO_ID, Menu.NONE, R.string.menu_info);''',
         label="PlayerActivity ActionBar Back item",
-    )
-    ctx.replace_once(
-        PLAYER,
-        "        switch (item.getItemId()) {\n            case MENU_LOCK_ID:",
-        '''        if (item.getItemId() == R.id.scrob_back_menu) {
-            mScrobPlayback.onStop(mVideoInfo, mPlayer, false);
-            getOnBackPressedDispatcher().onBackPressed();
-            return true;
-        }
-        switch (item.getItemId()) {
-            case MENU_LOCK_ID:''',
-        label="PlayerActivity Back action",
     )
     ctx.replace_once(
         PLAYER,

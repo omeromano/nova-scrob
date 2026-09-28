@@ -1,4 +1,4 @@
-# NOVA Scrob v0.2.0-dev.13
+# NOVA Scrob v0.2.0-dev.14
 
 Minimal NOVA Video Player fork for direct playback tracking to a self-hosted Scrob instance.
 
@@ -6,7 +6,7 @@ Minimal NOVA Video Player fork for direct playback tracking to a self-hosted Scr
 
 The 0.2.x line is focused on maintainability: preserve the playback behavior proven in v0.1.7/dev.8 while making the Scrob integration easier to inspect, test, rebase, and eventually present upstream as an optional feature.
 
-`v0.2.0-dev.13` builds on the validated dev.12 lifecycle-test baseline by beginning measured reduction of the upstream patch surface. PlayerActivity now requires eight anchored edits instead of ten: the Scrob import insertion and custom menu-ID constant insertion are gone, while every validated playback lifecycle hook remains unchanged.
+`v0.2.0-dev.14` continues the measured patch-surface reduction from dev.13. `PlayerActivity` now requires seven anchored edits instead of eight by attaching the custom Back behavior directly to the Back menu item when it is created, eliminating the separate `onOptionsItemSelected()` patch while preserving the same stop-then-Back behavior.
 
 ## Connection state model
 
@@ -126,7 +126,7 @@ The source-resolution path uses the official release `manifest.xml` as the immut
 
 ## Player integration boundary
 
-`PlayerActivity` delegates Scrob lifecycle behavior to `ScrobPlaybackBridge`. The bridge owns periodic progress scheduling, duplicate-stop suppression, NOVA 6.4.72 `PlayerService.PlaybackSnapshot` position capture, the live-player fallback, and webhook dispatch. dev.13 keeps all seven bridge references (field plus play, pause, completion, Back, finish, and destroy) but reduces the patcher from ten to eight PlayerActivity anchors by using a fully qualified bridge type and a standalone generated `R.id.scrob_back_menu` resource.
+`PlayerActivity` delegates Scrob lifecycle behavior to `ScrobPlaybackBridge`. The bridge owns periodic progress scheduling, duplicate-stop suppression, NOVA 6.4.72 `PlayerService.PlaybackSnapshot` position capture, the live-player fallback, and webhook dispatch. dev.14 keeps all seven bridge references (field plus play, pause, completion, Back, finish, and destroy) while reducing the patcher to seven PlayerActivity anchors. The Back icon and its stop/back behavior are installed together at menu creation time, so `onOptionsItemSelected()` no longer needs a Scrob-specific edit.
 
 ## Patch and CI checks
 
@@ -165,4 +165,4 @@ GitHub Actions performs the authoritative source resolution, preflight, Gradle b
 
 ## Next build
 
-After dev.13 validates, the next reduction should be chosen from the generated `PATCH_SURFACE.md` rather than by guesswork. The priority remains shrinking upstream-owned edits without changing the validated lifecycle contract; alternate authentication should still wait for evidence of a server-supported mechanism.
+After dev.14 validates, review the six remaining lifecycle/bridge anchors plus the single Back-menu anchor before attempting another reduction. Do not force the count lower if doing so would make event timing less explicit or harder to review; the priority remains a small, stable upstream seam with unchanged lifecycle behavior.

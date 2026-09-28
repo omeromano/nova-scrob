@@ -51,9 +51,9 @@ def write_surface_report(ctx, output_path):
         "",
         "## PlayerActivity boundary",
         "",
-        "Dev.13 deliberately removes two upstream anchors used by dev.12: the Scrob import insertion and the custom `MENU_BACK_ID` constant insertion.",
-        "The bridge field now uses its fully qualified class name, and the Back action uses a standalone generated resource ID (`R.id.scrob_back_menu`).",
-        "Playback lifecycle calls are otherwise unchanged.",
+        "Dev.14 removes one additional upstream `PlayerActivity` anchor compared with dev.13.",
+        "The custom Back item now owns its click listener at creation time, so no separate `onOptionsItemSelected()` patch is required.",
+        "The listener preserves the existing ordering: send the final Scrob stop, then dispatch Android Back. Playback lifecycle behavior is otherwise unchanged.",
         "",
     ]
     output_path.write_text("\n".join(lines), encoding="utf-8")

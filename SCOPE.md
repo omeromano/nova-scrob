@@ -63,6 +63,15 @@ Make the Scrob integration cheaper and safer to maintain across upstream NOVA re
 - Add a regression contract that locks the reduced eight-anchor PlayerActivity boundary and prevents the two removed edits from creeping back.
 - Keep `ScrobPlaybackBridge`, transport/auth/configuration behavior, webhook semantics, Back behavior, and 60-second cadence unchanged from dev.12.
 
+
+### v0.2.0-dev.14 — Back-handler anchor consolidation
+
+- Reduce `PlayerActivity.java` from eight anchored edits to seven by attaching the Back action directly to the custom Back menu item.
+- Remove the separate `onOptionsItemSelected()` patch while preserving the exact `OnStop` then Android Back ordering.
+- Keep the same seven bridge references and all validated playback lifecycle semantics.
+- Extend CI and static contracts to lock the seven-anchor boundary and prevent the removed handler patch from returning.
+- Keep the Scrob bridge, transport, auth/configuration, connection-state model, package identity, and upstream source lock unchanged from dev.13.
+
 ## Next 0.2.x steps
 
 ### Later

@@ -1,5 +1,17 @@
 # Changelog
 
+## v0.2.0-dev.14
+
+### Consolidate Back integration to seven PlayerActivity anchors
+
+- Reduce `PlayerActivity.java` from eight anchored edits to seven by moving the custom Back action into the Back menu item's own `OnMenuItemClickListener` at creation time.
+- Remove the separate `onOptionsItemSelected()` Scrob Back patch entirely.
+- Preserve the validated Back sequence exactly: `mScrobPlayback.onStop(..., false)` executes before `getOnBackPressedDispatcher().onBackPressed()`.
+- Keep all seven bridge references and all playback lifecycle semantics unchanged: play, pause, completion, Back, finish, and destroy behavior remain as in dev.13.
+- Extend the patch-surface contract and PlayerActivity verifier so the removed Back-handler anchor cannot silently return.
+- Update CI to require exactly seven PlayerActivity anchor replacements and to verify the menu-owned click listener in the resolved NOVA v6.4.72 tree.
+- No change to `ScrobPlaybackBridge`, webhook transport, auth/configuration, connection state, package identity, source locking, or 60-second progress behavior.
+
 ## v0.2.0-dev.13
 
 ### First measured upstream patch-surface reduction

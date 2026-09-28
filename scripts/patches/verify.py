@@ -18,7 +18,7 @@ def verify(ctx):
     pa = ctx.result_text("Video/src/main/java/com/archos/mediacenter/video/player/PlayerActivity.java")
     required_player_hooks = (
         "private final com.archos.mediacenter.video.scrob.ScrobPlaybackBridge mScrobPlayback = new com.archos.mediacenter.video.scrob.ScrobPlaybackBridge(this);",
-        "if (item.getItemId() == R.id.scrob_back_menu) {",
+        "backMenuItem.setOnMenuItemClickListener(new MenuItem.OnMenuItemClickListener() {",
         "mScrobPlayback.onPlay(mVideoInfo, mPlayer);",
         "mScrobPlayback.onPause(mVideoInfo, mPlayer);",
         "mScrobPlayback.onStop(mVideoInfo, mPlayer, true);",
@@ -37,6 +37,7 @@ def verify(ctx):
         "import com.archos.mediacenter.utils.scrob.Scrob;",
         "import com.archos.mediacenter.video.scrob.ScrobPlaybackBridge;",
         "MENU_BACK_ID",
+        "if (item.getItemId() == R.id.scrob_back_menu) {",
         "mScrobHandler",
         "mScrobProgress",
         "private void scrobPlayback(",

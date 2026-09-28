@@ -90,7 +90,7 @@ jobs:
         run: |
           set -euxo pipefail
           python3 scripts/apply_nova_scrob.py --check --surface-report dist/PATCH_SURFACE.md nova-src
-          grep -F '`PlayerActivity.java` anchor replacements: **8**' dist/PATCH_SURFACE.md
+          grep -F '`PlayerActivity.java` anchor replacements: **7**' dist/PATCH_SURFACE.md
           cat dist/PATCH_SURFACE.md >> "$GITHUB_STEP_SUMMARY"
 
       - name: Apply NOVA Scrob patch
@@ -128,6 +128,8 @@ jobs:
           grep -n "getPlaybackSnapshot()" nova-src/Video/src/main/java/com/archos/mediacenter/video/scrob/ScrobPlaybackBridge.java
           ! grep -q "mScrobHandler\|mScrobProgress\|private void scrobPlayback" nova-src/Video/src/main/java/com/archos/mediacenter/video/player/PlayerActivity.java
           grep -n "R.id.scrob_back_menu" nova-src/Video/src/main/java/com/archos/mediacenter/video/player/PlayerActivity.java
+          grep -n "backMenuItem.setOnMenuItemClickListener" nova-src/Video/src/main/java/com/archos/mediacenter/video/player/PlayerActivity.java
+          ! grep -q "if (item.getItemId() == R.id.scrob_back_menu)" nova-src/Video/src/main/java/com/archos/mediacenter/video/player/PlayerActivity.java
           ! grep -q "MENU_BACK_ID" nova-src/Video/src/main/java/com/archos/mediacenter/video/player/PlayerActivity.java
           ! grep -q "import com.archos.mediacenter.video.scrob.ScrobPlaybackBridge;" nova-src/Video/src/main/java/com/archos/mediacenter/video/player/PlayerActivity.java
           test -f nova-src/Video/res/values/scrob_ids.xml
