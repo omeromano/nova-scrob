@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.2.0-rc.1
+
+- Cut the first 0.2.0 release candidate from the validated dev.16 baseline.
+- Freeze the dev.16 runtime, patch modules, package identity, preference keys, signing identity, NOVA v6.4.72 source lock, and 6+1 upstream/fork patch boundary.
+- Promote the RC validation checklist and release notes to first-class build artifacts.
+- Keep the upstream proposal bundle generation active for final inspection before the post-0.2.0 maintainer proposal.
+- No intended playback, webhook, authentication, settings, diagnostics, or Back-button behavior changes.
+
 ## v0.2.0-dev.16
 
 ### Release hardening and upstream proposal bundle

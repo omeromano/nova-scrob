@@ -236,7 +236,7 @@ jobs:
           sha256sum "dist/nova-scrob-v${APP_VERSION}-upstream-proposal.tar.gz" >> dist/SHA256SUMS.txt
 
           cp release/RELEASE_CANDIDATE_CHECKLIST.md dist/RELEASE_CANDIDATE_CHECKLIST.md
-          cp release/RC1_RELEASE_NOTES_DRAFT.md dist/RC1_RELEASE_NOTES_DRAFT.md
+          cp release/RC1_RELEASE_NOTES.md dist/RC1_RELEASE_NOTES.md
           {
             echo "# NOVA Scrob release provenance"
             echo
@@ -269,7 +269,7 @@ jobs:
             dist/RELEASE_PROVENANCE.md
             dist/SIGNING_KEY.sha256
             dist/RELEASE_CANDIDATE_CHECKLIST.md
-            dist/RC1_RELEASE_NOTES_DRAFT.md
+            dist/RC1_RELEASE_NOTES.md
             dist/nova-scrob-v${{ steps.meta.outputs.app_version }}-upstream-proposal.tar.gz
             dist/upstream-proposal/**
           if-no-files-found: error
@@ -290,7 +290,7 @@ jobs:
             dist/RELEASE_PROVENANCE.md
             dist/SIGNING_KEY.sha256
             dist/RELEASE_CANDIDATE_CHECKLIST.md
-            dist/RC1_RELEASE_NOTES_DRAFT.md
+            dist/RC1_RELEASE_NOTES.md
             dist/nova-scrob-v${{ steps.meta.outputs.app_version }}-upstream-proposal.tar.gz
           generate_release_notes: true
 

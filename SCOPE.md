@@ -4,6 +4,13 @@
 
 Make the Scrob integration cheaper and safer to maintain across upstream NOVA releases without destabilizing the playback tracking that became reliable in v0.1.7.
 
+## v0.2.0-rc.1 — release candidate
+
+- Freeze the validated dev.16 runtime and upstream/fork patch architecture.
+- Change release/version metadata only; no intended production behavior change.
+- Validate install-over continuity, persisted Scrob settings, connection diagnostics, playback lifecycle, custom Back handling, duplicate-stop suppression, reconnect behavior, Continue Watching, APK identity/signing, and release provenance on a real device.
+- Promote to `v0.2.0` only if RC acceptance passes without requiring new architecture.
+
 ## Completed maintenance layers
 
 ### Source provenance / reproducibility

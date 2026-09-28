@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Release-hardening invariants for the frozen dev.15 runtime baseline."""
+"""RC1 release invariants for the frozen validated dev.16 runtime baseline."""
 from __future__ import annotations
 
 import base64
@@ -19,7 +19,7 @@ EXPECTED_PREF_KEYS = {
     "scrob_api_key": "scripts/templates/MediaLib/src/com/archos/mediacenter/utils/scrob/ScrobCredentials.java",
     "scrob_enabled": "scripts/templates/MediaLib/src/com/archos/mediacenter/utils/scrob/ScrobConfig.java",
 }
-# Frozen against validated v0.2.0-dev.15. dev.16 is release hardening only.
+# Frozen against validated v0.2.0-dev.16. RC1 must not change runtime or patch behavior.
 EXPECTED_RUNTIME_SHA256 = {
     "scripts/templates/MediaLib/src/com/archos/mediacenter/utils/scrob/Scrob.java": "b5605c6262635db36645bd388b6a6cf2d3e94adf36d0f5c3441a7bb0d6757443",
     "scripts/templates/MediaLib/src/com/archos/mediacenter/utils/scrob/ScrobAuthManager.java": "b12432056b36eaebc70161e2e4333cb0fb312763087d210a2d56b6160ba95098",
@@ -60,8 +60,8 @@ def load_properties() -> dict[str, str]:
 
 def main() -> None:
     props = load_properties()
-    if props.get("APP_VERSION") != "0.2.0-dev.16":
-        raise SystemExit(f"Unexpected dev.16 APP_VERSION: {props.get('APP_VERSION')!r}")
+    if props.get("APP_VERSION") != "0.2.0-rc.1":
+        raise SystemExit(f"Unexpected RC1 APP_VERSION: {props.get('APP_VERSION')!r}")
     for key, expected in EXPECTED_PROPERTIES.items():
         actual = props.get(key)
         if actual != expected:
@@ -76,7 +76,7 @@ def main() -> None:
         actual = sha256_file(rel)
         if actual != expected:
             raise SystemExit(
-                "Frozen dev.15 runtime surface changed during release hardening: "
+                "Frozen dev.16 runtime surface changed in RC1: "
                 f"{rel}\nexpected={expected}\nactual={actual}"
             )
 
@@ -94,10 +94,10 @@ def main() -> None:
         if forbidden in workflow:
             raise SystemExit("Deprecated Node-20 action remains in release workflow: " + forbidden)
 
-    print("NOVA Scrob dev.16 release-hardening invariants passed")
+    print("NOVA Scrob v0.2.0-rc.1 release invariants passed")
     print(" - package identity frozen")
     print(" - legacy Scrob preference keys frozen")
-    print(" - validated dev.15 runtime/patch implementation frozen")
+    print(" - validated dev.16 runtime/patch implementation frozen")
     print(" - signing key identity frozen")
 
 
